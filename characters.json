@@ -1,0 +1,28 @@
+[
+    {
+        "name": "Kamare",
+        "password": "******",
+        "post-connect": ["k fa"],
+        "auto-connect": true,
+        "log-file": "...",
+        "puppets": [
+            {
+                "name": "'Kamare",
+                "action": "k",
+                "auto-connect": true,
+                "log-file": "..."
+            },
+            ...
+        ],
+        "misc-tabs": [
+            {
+                "send-prefix": "com ",
+                "receive-prefix": "Com ",
+                "auto-connect": false,
+                "log-file": "..."
+            },
+            ...
+        ]
+    },
+    ...
+]
