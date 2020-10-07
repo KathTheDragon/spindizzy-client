@@ -37,12 +37,20 @@ class Client:
             conn.close()
 
     def send(self, message):
-        if self.active_conn.isopen:
-            self.active_conn.send(message)
+        tab = self.active_tab
+        if tab is not None:
+            conn = self.get_connection(tab.player)
+            if conn is not None and conn.isopen:
+                conn.send(message)
 
     def receive(self):
-        if self.active_conn.isopen:
-            return self.active_conn.receive()
+        tab = self.active_tab
+        if tab is not None:
+            conn = self.get_connection(tab.player)
+            if conn is not None and conn.isopen:
+                return conn.receive()
+            else:
+                return ''
         else:
             return ''
 
