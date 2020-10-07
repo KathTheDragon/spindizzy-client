@@ -7,8 +7,8 @@ class Client:
 
     def set_title(self, player='', puppet=''):
         if not player:
-            self.root.title('Spindizzy')
+            self.window.title('Spindizzy')
         elif not puppet:
-            self.root.title(f'{player} - Spindizzy')
+            self.window.title(f'{player} - Spindizzy')
         else:
-            self.root.title(f'{puppet} - {player} - Spindizzy')
+            self.window.title(f'{puppet} - {player} - Spindizzy')
