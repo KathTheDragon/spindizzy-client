@@ -13,7 +13,11 @@ class ConnectionOpen(ConnectionError):
     pass
 
 class Connection:
-    def __init__(self):
+    def __init__(self, player='', password=''):
+        if player and password:
+            self.login = (player, password)
+        else:
+            self.login = ()
         self.isopen = False
         self.open()
 
@@ -49,6 +53,8 @@ class Connection:
             socket.create_connection(('muck.spindizzy.org', 7073), 1),
             server_hostname='muck.spindizzy.org'
         )
+        if self.login:
+            self.send('connect {} {}'.format(*self.login))
 
     def close(self):
         if not self.isopen:
