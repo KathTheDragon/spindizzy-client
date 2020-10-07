@@ -31,7 +31,7 @@ def create():
 def create_menus(window):
     window.option_add('*tearOff', False)
     menubar = tk.Menu(window)
-    root['menu'] = menubar
+    window['menu'] = menubar
     file = tk.Menu(menubar)
     menubar.add_cascade(menu=file, label='File')
 
