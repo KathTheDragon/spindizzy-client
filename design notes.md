@@ -3,5 +3,4 @@ Could store character description/properties client-side and have client-side ch
 - If you're not, then the next time you connect it goes and does that
 - If you happen to use the MUCK character editor yourself, it'll detect it and automatically update the offline copy
 
-Isolate networking from rest of client
-- Have a `Connection` class with `send` and `receive` methods. Each instance is a separate connection to Spindizzy, buffers lines received from the server until they're requested.
+Can use `root.after(delay, func)` to keep the output pane updated within tkinter
