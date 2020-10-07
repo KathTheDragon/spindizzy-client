@@ -35,5 +35,16 @@ def create_menus(window):
     file = tk.Menu(menubar)
     menubar.add_cascade(menu=file, label='File')
 
-def add_tab(tabbar, player, puppet=''):
-    pass
+def add_tab(client, player, puppet=''):
+    tab = ttk.Frame(client.tabbar, padding=(5, 1), borderwidth=2, relief='raised')
+    tab.player = player
+    tab.puppet = puppet
+    tab.grid(column=len(client.tabbar.grid_slaves()), row=0)
+    if puppet:
+        label = ttk.Label(tab, text=f'{puppet} - {player}')
+    else:
+        label = ttk.Label(tab, text=player)
+    label.grid()
+
+    tab.bind('<1>', lambda e: client.set_active_tab(tab))
+    label.bind('<1>', lambda e: client.set_active_tab(tab))

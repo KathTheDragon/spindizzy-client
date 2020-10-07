@@ -3,6 +3,7 @@ from . import ui, network
 class Client:
     def __init__(self):
         self.window, self.output, self.input, self.tabbar = ui.create()
+        self.active_tab = None
         self.set_title()
         self.connections = []
         self.active_conn = None
@@ -60,3 +61,13 @@ class Client:
             return self.active_conn.receive()
         else:
             return ''
+
+    def set_active_tab(self, tab):
+        if self.active_tab is not None:
+            self.active_tab.configure(relief='raised')
+        tab.configure(relief='sunken')
+        self.active_tab = tab
+        self.set_title(tab.player, tab.puppet)
+
+    def add_tab(self, player, puppet=''):
+        ui.add_tab(self, player, puppet)
