@@ -2,18 +2,8 @@ from . import ui, network
 
 class Client:
     def __init__(self):
-        self.window, self.output, self.input, self.tabbar = ui.create()
+        self.ui = ui.UI()
         self.connections = {}
-        self.active_tab = None
-        self.set_title()
-
-    def set_title(self, player='', puppet=''):
-        if not player:
-            self.window.title('Spindizzy')
-        elif not puppet:
-            self.window.title(f'{player} - Spindizzy')
-        else:
-            self.window.title(f'{puppet} - {player} - Spindizzy')
 
     def get_connection(self, player):
         return self.connections.get(player, None)
@@ -37,14 +27,14 @@ class Client:
             conn.close()
 
     def send(self, message):
-        tab = self.active_tab
+        tab = self.ui.active_tab
         if tab is not None:
             conn = self.get_connection(tab.player)
             if conn is not None and conn.isopen:
                 conn.send(message)
 
     def receive(self):
-        tab = self.active_tab
+        tab = self.ui.active_tab
         if tab is not None:
             conn = self.get_connection(tab.player)
             if conn is not None and conn.isopen:
@@ -53,13 +43,3 @@ class Client:
                 return ''
         else:
             return ''
-
-    def set_active_tab(self, tab):
-        if self.active_tab is not None:
-            self.active_tab.configure(relief='raised')
-        tab.configure(relief='sunken')
-        self.active_tab = tab
-        self.set_title(tab.player, tab.puppet)
-
-    def add_tab(self, player, puppet=''):
-        ui.add_tab(self, player, puppet)
