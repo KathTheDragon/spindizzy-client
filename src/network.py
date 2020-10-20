@@ -16,6 +16,8 @@ class Connection:
     def __init__(self, player, password):
         self.login = (player, password)
         self.isopen = False
+        self.sent = []
+        self.received = []
         self.open()
 
     def send(self, message):
@@ -23,6 +25,7 @@ class Connection:
             raise ConnectionClosed()
         if not message.endswith('\r\n'):
             message += '\r\n'
+        self.sent.append(message)
         self.socket.sendall(message.encode())
 
     def receive(self):
@@ -40,12 +43,15 @@ class Connection:
         except socket.timeout:
             pass
         finally:
-            return data.decode()
+            message = data.decode()
+            self.received.append(message)
+            return message
 
     def open(self):
         if self.isopen:
             raise ConnectionOpen()
         self.isopen = True
+        # To-do: Add connect preamble
         self.socket = _context.wrap_socket(
             socket.create_connection(('muck.spindizzy.org', 7073), 1),
             server_hostname='muck.spindizzy.org'
@@ -56,4 +62,5 @@ class Connection:
         if not self.isopen:
             raise ConnectionClosed()
         self.isopen = False
+        # To-do: Add disconnect postamble
         self.socket.close()
