@@ -15,19 +15,22 @@ class UI:
         menu_file = tk.Menu(menubar)
         menubar.add_cascade(menu=menu_file, label='File')
 
-        # Create widgets
+        # Output
         output = tk.Text(window, wrap='word', state='disabled')
         output_scroll = ttk.Scrollbar(window, orient=tk.VERTICAL, command=output.yview)
         output.configure(yscrollcommand=output_scroll.set)
-        input = tk.Text(window, height=1, wrap='word')
-        tabbar = ttk.Frame(window, height=16)
-
-        # Grid widgets
         output.grid(column=0, row=0, sticky='nwes')
         output_scroll.grid(column=1, row=0, sticky='nwes')
+
+        # Input
+        input = tk.Text(window, height=1, wrap='word')
         input.grid(column=0, row=1, columnspan=2, sticky='nwes')
+
+        # Tabbar
+        tabbar = ttk.Frame(window, height=16)
         tabbar.grid(column=0, row=2, columnspan=2, sticky='nwes')
 
+        # Final setup
         input.focus()
 
         self.window = window
