@@ -1,15 +1,17 @@
 from . import ui, network
 
 class Client:
-    def __init__(self):
+    def __init__(self, config):
         self.ui = ui.UI()
         self.connections = {}
+        self.config = config
 
     def get_connection(self, player):
         return self.connections.get(player, None)
 
-    def new_connection(self, player, password):
+    def new_connection(self, player):
         if player not in self.connections:
+            password = self.config.password(player)
             self.connections[player] = network.Connection(player, password)
 
     def delete_connection(self, player):
