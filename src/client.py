@@ -1,9 +1,11 @@
-from . import ui, network
+from . import ui, network, tabs
 
 class Client:
     def __init__(self, config):
         self.ui = ui.UI()
         self.connections = {}
+        self.tabs = {}
+        self.active_tab = None
         self.config = config
 
     def get_connection(self, player):
@@ -20,7 +22,9 @@ class Client:
 
     def open_connection(self, player):
         conn = self.get_connection(player)
-        if conn is not None and not conn.isopen:
+        if conn is None:
+            self.new_connection(player)
+        elif not conn.isopen:
             conn.open()
 
     def close_connection(self, player):
@@ -28,15 +32,61 @@ class Client:
         if conn is not None and conn.isopen:
             conn.close()
 
+    def get_tab(self, player, puppet=''):
+        return self.tabs.get((player, puppet), None)
+
+    def connect(self, player, puppet=''):
+        tab = self.get_tab(player, puppet)
+        if tab is None:  # Open new tab
+            tab = tabs.Tab(self, player, puppet)
+            self.tabs[player, puppet] = tab
+            self.set_active_tab(tab)
+        elif not tab.state().connected:  # Reconnect existing tab
+            if not puppet:  # Need a network connection
+                self.open_connection(player)
+            tab.state(connected=True)
+            self.set_active_tab(tab)
+        else:
+            pass
+
+    def disconnect(self, player, puppet=''):
+        tab = self.get_tab(player, puppet)
+        if tab is None or not tab.state().connected:
+            pass
+        else:
+            if not puppet:
+                self.close_connection(player)
+                # Disconnect all puppet tabs
+                for tab in self.tabs.values():
+                    if tab.player == player and tab.puppet != '':
+                        tab.state(connected=False)
+            tab.state(connected=False)
+
+    def close(self, player, puppet=''):
+        tab = self.get_tab(player, puppet)
+        if tab is None:
+            pass
+        else:
+            if tab.state().connected:
+                pass  # Warn the player they're connected
+            self.disconnect(player, puppet)
+            tab.close()
+            self.tabs.pop((player, puppet))
+
+    def set_active_tab(self, tab):
+        self.active_tab.state(active=False)
+        tab.state(active=True)
+        self.active_tab = tab
+
     def send(self, message):
-        tab = self.ui.active_tab
+        tab = self.active_tab
         if tab is not None:
             conn = self.get_connection(tab.player)
             if conn is not None and conn.isopen:
                 conn.send(message)
 
     def receive(self):
-        tab = self.ui.active_tab
+        tab = self.active_tab
         if tab is not None:
             conn = self.get_connection(tab.player)
             if conn is not None and conn.isopen:
