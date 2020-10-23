@@ -32,7 +32,7 @@ def load_player(player):
             'auto-connect': player.get('auto-connect', False),
             'log-file': player.get('log-file', ''),
             'puppets': load_dict(player.get('puppets', {}), load_puppet),
-            'misc-tabs': load_dict(player.get('misc-tabs', {}), load_tab),
+            # 'misc-tabs': load_dict(player.get('misc-tabs', {}), load_tab),
         }
 
 def load_puppet(puppet):
@@ -45,51 +45,59 @@ def load_puppet(puppet):
             'log-file': puppet.get('log-file', ''),
         }
 
-def load_tab(tab):
-    if 'send-prefix' not in tab or 'receive-prefix' not in tab:
-        return {}
-    else:
-        return {
-            'send-prefix': tab['send-prefix'],
-            'receive-prefix': tab['receive-prefix'],
-            'auto-connect': puppet.get('auto-connect', False),
-            'log-file': puppet.get('log-file', ''),
-        }
+# def load_tab(tab):
+#     if 'send-prefix' not in tab or 'receive-prefix' not in tab:
+#         return {}
+#     else:
+#         return {
+#             'send-prefix': tab['send-prefix'],
+#             'receive-prefix': tab['receive-prefix'],
+#             'auto-connect': puppet.get('auto-connect', False),
+#             'log-file': puppet.get('log-file', ''),
+#         }
 
 class Characters:
     def __init__(self):
         with charfile.open() as f:
             chars = json.load(f)
-        self.chars = load_dict(chars, load_player)
+        self._chars = load_dict(chars, load_player)
+
+    def __iter__(self):
+        yield from self._chars
 
     def save(self):
         with charfile.open('w') as f:
-            json.dump(self.chars, f)
+            json.dump(self._chars, f)
 
     def add_player(self, player, password, postconnect=None, autoconnect=False, logfile=''):
-        self.chars[player] = {
+        self._chars[player] = {
             'password': password,
             'post-connect': postconnect or [],
             'auto-connect': autoconnect,
             'log-file': logfile,
             'puppets': {},
-            'misc-tabs': {}
+            # 'misc-tabs': {}
         }
 
     def add_puppet(self, player, puppet, action, autoconnect=False, logfile=''):
-        self.chars[player]['puppets'][puppet] = {
+        self._chars[player]['puppets'][puppet] = {
             'action': action,
             'auto-connect': autoconnect,
             'log-file': logfile
         }
 
-    def add_tab(self, player, tab, sendprefix, receiveprefix, autoconnect=False, logfile=''):
-        self.chars[player]['misc-tabs'][puppet] = {
-            'send-prefix': sendprefix,
-            'receive-prefix': receiveprefix,
-            'auto-connect': autoconnect,
-            'log-file': logfile
-        }
+    # def add_tab(self, player, tab, sendprefix, receiveprefix, autoconnect=False, logfile=''):
+    #     self._chars[player]['misc-tabs'][puppet] = {
+    #         'send-prefix': sendprefix,
+    #         'receive-prefix': receiveprefix,
+    #         'auto-connect': autoconnect,
+    #         'log-file': logfile
+    #     }
 
     def password(self, player):
-        return self.chars.get(player, {}).get('password', '')
+        return self._chars.get(player, {}).get('password', '')
+
+    def postconnect(self, player):
+        return self._chars.get(player, {}).get('auto-connect', [])
+
+    def autoconnect(self, player, puppet=''):
