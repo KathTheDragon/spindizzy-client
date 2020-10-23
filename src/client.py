@@ -93,7 +93,8 @@ class Client:
 
     def send(self, message):
         tab = self.active_tab
-        if tab is not None:
+        if tab is not None and tab.state().connected:
+        # If tab is not connected, ask user if they want to connect
             conn = self.get_connection(tab.player)
             if conn is not None and conn.isopen:
                 conn.send(message)
