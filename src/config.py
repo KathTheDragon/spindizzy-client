@@ -98,6 +98,19 @@ class Characters:
         return self._chars.get(player, {}).get('password', '')
 
     def postconnect(self, player):
-        return self._chars.get(player, {}).get('auto-connect', [])
+        return self._chars.get(player, {}).get('post-connect', [])
 
     def autoconnect(self, player, puppet=''):
+        if puppet:
+            return self._chars.get(player, {}).get('puppets', {}).get(puppet, {}).get('auto-connect', False)
+        else:
+            return self._chars.get(player, {}).get('auto-connect', False)
+
+    def logfile(self, player, puppet=''):
+        if puppet:
+            return self._chars.get(player, {}).get('puppets', {}).get(puppet, {}).get('log-file', False)
+        else:
+            return self._chars.get(player, {}).get('log-file', False)
+
+    def puppets(self, player):
+        return self._chars.get(player, {}).get('puppets', {})
