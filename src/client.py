@@ -8,6 +8,10 @@ class Client:
         self.active_tab = None
         self.config = config.Config()
         self.characters = config.Characters()
+        # Auto-connect players
+        for player in self.characters:
+            if self.characters.autoconnect(player):
+                self.connect(player)
 
     def get_connection(self, player):
         return self.connections.get(player, None)
@@ -52,6 +56,11 @@ class Client:
             self.set_active_tab(tab)
         else:
             pass
+        # Auto-connect puppets
+        if not puppet:
+            for puppet in self.characters.puppets(player):
+                if self.characters.autoconnect(player, puppet):
+                    self.connect(player, puppet)
 
     def disconnect(self, player, puppet=''):
         tab = self.get_tab(player, puppet)
