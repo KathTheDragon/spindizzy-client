@@ -1,20 +1,24 @@
-from . import ui, network, tabs
+from . import config, ui, network, tabs
 
 class Client:
-    def __init__(self, config):
+    def __init__(self):
         self.ui = ui.UI()
         self.connections = {}
         self.tabs = {}
         self.active_tab = None
-        self.config = config
+        self.config = config.Config()
+        self.characters = config.Characters()
 
     def get_connection(self, player):
         return self.connections.get(player, None)
 
     def new_connection(self, player):
         if player not in self.connections:
-            password = self.config.password(player)
-            self.connections[player] = network.Connection(player, password)
+            password = self.characters.password(player)
+            if password:
+                self.connections[player] = network.Connection(player, password)
+            else:
+                pass  # Warn the user the player doesn't exist or has no password set
 
     def delete_connection(self, player):
         if player in self.connections:
