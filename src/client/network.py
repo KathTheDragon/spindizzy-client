@@ -51,11 +51,11 @@ class Connection:
         if self.isopen:
             raise ConnectionOpen()
         self.isopen = True
-        # To-do: Add connect preamble
         self.socket = _context.wrap_socket(
             socket.create_connection(('muck.spindizzy.org', 7073), 1),
             server_hostname='muck.spindizzy.org'
         )
+        # To-do: Add connect preamble
         self.send('connect {} {}'.format(*self.login))
 
     def close(self):
