@@ -5,7 +5,7 @@
         "auto-connect": true,
         "log-file": "...",
         "puppets": {
-            "'Kamare'": {
+            "'Kamare": {
                 "action": "k",
                 "auto-connect": true,
                 "log-file": "..."
