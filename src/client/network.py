@@ -3,13 +3,10 @@ import ssl
 
 _context = ssl.create_default_context()
 
-class ConnectionError(Exception):
+class ConnectionClosed:
     pass
 
-class ConnectionClosed(ConnectionError):
-    pass
-
-class ConnectionOpen(ConnectionError):
+class ConnectionOpen:
     pass
 
 class Connection:
