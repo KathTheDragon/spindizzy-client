@@ -175,7 +175,7 @@ class CharacterList:
     def new_player(self, name, password, postconnect=None, autoconnect=False, logfile=''):
         if name in self.players:
             raise CharacterAlreadyExists(name)
-        self.players[name] = Player(name, autoconnect, logfile, password, postconnect, [], [])
+        self.players[name] = Player(name, autoconnect, logfile, password, postconnect, {}, {})
 
     def edit_player(self, player, name=None, password=None, postconnect=None, autoconnect=None, logfile=None):
         if player not in self.players:
@@ -243,7 +243,7 @@ class CharacterList:
             raise CharacterAlreadyExists(player, name)
         self.players[player].misctabs[name] = MiscTab(name, sendprefix, receiveprefix, autoconnect, logfile)
 
-    def edit_misctab(self, player, misctab, name='', sendprefix='', receiveprefix='', autoconnect=False, logfile=''):
+    def edit_misctab(self, player, misctab, name=None, sendprefix=None, receiveprefix=None, autoconnect=None, logfile=None):
         if player not in self.players:
             raise CharacterDoesNotExist(player)
         if misctab not in self.players[player]:
