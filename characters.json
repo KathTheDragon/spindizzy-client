@@ -7,7 +7,6 @@
         "puppets": {
             "'Kamare": {
                 "action": "k",
-                "auto-connect": true,
                 "log-file": "..."
             },
             ...
@@ -16,7 +15,6 @@
             "Com": {
                 "send-prefix": "com ",
                 "receive-prefix": "Com ",
-                "auto-connect": false,
                 "remove-prefix": true,
                 "log-file": "..."
             },

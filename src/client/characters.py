@@ -41,13 +41,11 @@ def save(characters):
 @dataclass
 class Character:
     name: str
-    autoconnect: bool
     logfile: str
 
     @staticmethod
     def kwargs(data):
         return dict(
-            autoconnect=data.get('auto-connect', False),
             logfile=data.get('log-file', '')
         )
 
@@ -62,6 +60,7 @@ class Character:
 class Player(Character):
     __required__: ClassVar = ['password']
     password: str
+    autoconnect: bool = False
     postconnect: list[str] = field(default_factory=list)
     puppets: dict[str, 'Puppet'] = field(default_factory=dict)
     misctabs: dict[str, 'MiscTab'] = field(default_factory=dict)
@@ -70,6 +69,7 @@ class Player(Character):
     def kwargs(data):
         return super().kwargs(data) | dict(
             password=data.get('password'),
+            autoconnect=data.get('auto-connect', False),
             postconnect=data.get('post-connect', []),
             puppets=load(Puppet, data.get('puppets', {})),
             misctabs=load(MiscTab, data.get('misc-tabs', {}))
@@ -78,6 +78,7 @@ class Player(Character):
     def save(self):
         return super().save() | {
             'password': self.password,
+            'auto-connect': self.autoconnect,
             'post-connect': self.postconnect,
             'puppets': save(self.puppets),
             'misc-tabs': save(self.misctabs)
