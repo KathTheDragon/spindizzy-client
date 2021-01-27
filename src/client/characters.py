@@ -233,16 +233,19 @@ class CharacterList:
             player.postconnect = postconnect
         if logfile is not None:
             player.logfile = logfile
+        self.save()
 
     def delete_player(self, player):
         self.get_player(player)
         del self.players[player]
+        self.save()
 
     def new_puppet(self, player, name, action, logfile=''):
         player = self.get_player(player)
         if name in player.tabs:
             raise CharacterAlreadyExists(player, puppet=name)
         player.tabs[name] = Puppet(name, logfile, action)
+        self.save()
 
     def get_puppet(self, player, puppet):
         player = self.get_player(player)
@@ -269,16 +272,19 @@ class CharacterList:
             puppet.autoconnect = autoconnect
         if logfile is not None:
             puppet.logfile = logfile
+        self.save()
 
     def delete_puppet(self, player, puppet):
         player, _ = self.get_puppet(player, puppet)
         del player.tabs[puppet]
+        self.save()
 
     def new_tab(self, player, name, sendprefix, receiveprefix, logfile=''):
         player = self.get_player(player)
         if name in self.players[player].tabs:
             raise CharacterAlreadyExists(player, tab=name)
         player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix)
+        self.save()
 
     def get_tab(self, player, tab):
         player = self.get_player(player)
@@ -309,7 +315,9 @@ class CharacterList:
             tab.autoconnect = autoconnect
         if logfile is not None:
             tab.logfile = logfile
+        self.save()
 
     def delete_tab(self, player, tab):
         player, _ = self.get_tab(player, tab)
         del player.tabs[tab]
+        self.save()
