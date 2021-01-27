@@ -124,7 +124,7 @@ class Player(Character):
 
     def send(self, message, puppet=''):
         if puppet:
-            message = self[puppet].sendprefix + message
+            message = self.tabs[puppet].sendprefix + message
         self.connection.send(message)
 
     def receive(self):
