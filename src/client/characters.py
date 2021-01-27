@@ -116,11 +116,16 @@ class Puppet(Character):
     def receiveprefix(self):
         return f'{self.name}> '
 
+    @property
+    def removeprefix(self):
+        return True
+
 @dataclass
 class MiscTab(Character):
     __required__ = ['send-prefix', 'receive-prefix']
     sendprefix: str
     receiveprefix: str
+    removeprefix: bool = False
 
     @staticmethod
     def kwargs(data):
