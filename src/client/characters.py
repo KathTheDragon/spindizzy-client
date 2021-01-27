@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import ClassVar
 
+from .network import Connection
+
 from .config import configdir
 charfile = configdir / 'characters.json'
 if not charfile.exists():
@@ -15,16 +17,24 @@ class MissingCharacterData(InvalidCharacterData):
         super().__init__(f'{cls.__name__} {name!r} missing key {key!r}')
 
 class CharacterAlreadyExists(Exception):
-    def __init__(self, player, puppet=''):
-        if puppet:
+    def __init__(self, player, *, puppet='', tab=''):
+        if puppet and tab:
+            raise ValueError('cannot specify both puppet and tab')
+        elif puppet:
             super().__init__(f'Puppet {puppet!r} of {player!r} already exists')
+        elif tab:
+            super().__init__(f'Tab {tab!r} of {player!r} already exists')
         else:
             super().__init__(f'Player {player!r} already exists')
 
 class CharacterDoesNotExist(Exception):
-    def __init__(self, player, puppet=''):
-        if puppet:
+    def __init__(self, player, *, puppet='', tab=''):
+        if puppet and tab:
+            raise ValueError('cannot specify both puppet and tab')
+        elif puppet:
             super().__init__(f'Puppet {puppet!r} of {player!r} does not exist')
+        elif tab:
+            super().__init__(f'Tab {tab!r} of {player!r} does not exist')
         else:
             super().__init__(f'Player {player!r} does not exist')
 
@@ -58,6 +68,15 @@ class Character:
             'log-file': self.logfile
         }
 
+    ## API
+    def receive(self, message):
+        self.buffer.append(message)
+        if self.logfile:
+            with open(self.logfile, mode='a') as f:
+                # Overly simplistic
+                f.write(message)
+        return True
+
 @dataclass
 class Player(Character):
     __required__: ClassVar = ['password']
@@ -65,6 +84,12 @@ class Player(Character):
     autoconnect: bool = False
     postconnect: list[str] = field(default_factory=list)
     tabs: dict[str, 'Tab'] = field(default_factory=dict)
+    connection: Connection = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self):
+        self.connection = Connection(self.name, self.password)
+        if self.autoconnect:
+            self.connect()
 
     @staticmethod
     def kwargs(data):
@@ -80,14 +105,38 @@ class Player(Character):
 
     def save(self):
         puppets = {name: char for name, char in self.tabs.items() if isinstance(char, Puppet)}
-        misctabs = {name: char for name, char in self.tabs.items() if not isinstance(char, Puppet)}
+        tabs = {name: char for name, char in self.tabs.items() if not isinstance(char, Puppet)}
         return super().save() | {
             'password': self.password,
             'auto-connect': self.autoconnect,
             'post-connect': self.postconnect,
             'puppets': save(puppets),
-            'misc-tabs': save(misctabs)
+            'misc-tabs': save(tabs)
         }
+
+    # API
+    def connect(self):
+        self.connection.open()
+        # Connection preamble in buffer and log
+        for line in self.postconnect:
+            self.send(line)
+
+    def disconnect(self):
+        self.connection.close()
+        # Disconnection postamble in buffer and log
+
+    def send(self, message, puppet=''):
+        if puppet:
+            message = self[puppet].sendprefix + message
+        self.connection.send(message)
+
+    def receive(self):
+        message = self.connection.receive()
+        for tab in self.tabs:
+            if tab.receive(message):
+                return True
+        else:
+            return super().receive(message)
 
 @dataclass
 class Tab(Character):
@@ -110,6 +159,14 @@ class Tab(Character):
             'receive-prefix': self.receiveprefix,
             'remove-prefix': self.removeprefix,
         }
+
+    ## API
+    def receive(self, message):
+        if not message.startswith(self.receiveprefix):
+            return False
+        if self.removeprefix:
+            message = message.removeprefix(self.receiveprefix)
+        return super().receive(message)
 
 @dataclass
 class Puppet(Tab):
@@ -150,55 +207,64 @@ class CharacterList:
             for tab in player.tabs:
                 yield name, tab
 
-    def new_player(self, name, password, postconnect=None, autoconnect=False, logfile=''):
+    def new_player(self, name, password, autoconnect=False, postconnect=(), logfile=''):
         if name in self.players:
             raise CharacterAlreadyExists(name)
-        self.players[name] = Player(name, autoconnect, logfile, password, postconnect)
+        self.players[name] = Player(name, logfile, password, autoconnect, postconnect)
+        self.save()
 
-    def edit_player(self, player, name=None, password=None, postconnect=None, autoconnect=None, logfile=None):
+    def get_player(self, player):
         if player not in self.players:
             raise CharacterDoesNotExist(player)
+        else:
+            return self.players[player]
+
+    def edit_player(self, player, name=None, password=None, autoconnect=None, postconnect=None, logfile=None):
+        player = self.get_player(player)
         if name == '':
             raise ValueError
         if password == '':
             raise ValueError
-        player = self.players[player]
         if name is not None and name not in self.players:
             self.players[name] = self.players.pop(player.name)
             player.name = name
         if password is not None:
             player.password = password
-        if postconnect is not None:
-            player.postconnect = postconnect
         if autoconnect is not None:
             player.autoconnect = autoconnect
+        if postconnect is not None:
+            player.postconnect = postconnect
         if logfile is not None:
             player.logfile = logfile
 
     def delete_player(self, player):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
+        self.get_player(player)
         del self.players[player]
 
-    def new_puppet(self, player, name, action, autoconnect=False, logfile=''):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
-        if name in self.players[player]:
-            raise CharacterAlreadyExists(player, name)
-        self.players[player].puppets[name] = Puppet(name, action, autoconnect, logfile)
+    def new_puppet(self, player, name, action, logfile=''):
+        player = self.get_player(player)
+        if name in player.tabs:
+            raise CharacterAlreadyExists(player, puppet=name)
+        player.tabs[name] = Puppet(name, logfile, action)
 
-    def edit_puppet(self, player, puppet, name=None, action=None, autoconnect=None, logfile=None):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
-        if puppet not in self.players[player]:
-            raise CharacterDoesNotExist(player, puppet)
+    def get_puppet(self, player, puppet):
+        player = self.get_player(player)
+        if puppet not in player.tabs:
+            raise CharacterDoesNotExist(player.name, puppet=puppet)
+        puppet = player.tabs[puppet]
+        if not isinstance(puppet, Puppet):
+            raise CharacterDoesNotExist(player.name, puppet=puppet.name)
+        else:
+            return player, puppet
+
+    def edit_puppet(self, player, puppet, name=None, action=None, logfile=None):
+        player, puppet = self.get_puppet(player, puppet)
         if name == '':
             raise ValueError
         if action == '':
             raise ValueError
-        puppet = self.players[player][puppet]
-        if name is not None and name not in self.players[player]:
-            self.players[player].puppets[name] = self.players[player].puppets.pop(puppet.name)
+        if name is not None and name not in player.tabs:
+            player.tabs[name] = player.tabs.pop(puppet.name)
             puppet.name = name
         if action is not None:
             puppet.action = action
@@ -208,46 +274,45 @@ class CharacterList:
             puppet.logfile = logfile
 
     def delete_puppet(self, player, puppet):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
-        if puppet not in self.players[player]:
-            raise CharacterDoesNotExist(player, puppet)
-        del self.players[player].puppets[puppet]
+        player, _ = self.get_puppet(player, puppet)
+        del player.tabs[puppet]
 
-    def new_misctab(self, player, name, sendprefix, receiveprefix, autoconnect=False, logfile=''):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
-        if name in self.players[player]:
-            raise CharacterAlreadyExists(player, name)
-        self.players[player].misctabs[name] = MiscTab(name, sendprefix, receiveprefix, autoconnect, logfile)
+    def new_tab(self, player, name, sendprefix, receiveprefix, logfile=''):
+        player = self.get_player(player)
+        if name in self.players[player].tabs:
+            raise CharacterAlreadyExists(player, tab=name)
+        player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix)
 
-    def edit_misctab(self, player, misctab, name=None, sendprefix=None, receiveprefix=None, autoconnect=None, logfile=None):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
-        if misctab not in self.players[player]:
-            raise CharacterDoesNotExist(player, misctab)
+    def get_tab(self, player, tab):
+        player = self.get_player(player)
+        if tab not in player.tabs:
+            raise CharacterDoesNotExist(player.name, tab=tab)
+        tab = player.tabs[tab]
+        if not isinstance(tab, Tab):
+            raise CharacterDoesNotExist(player.name, tab=tab.name)
+        else:
+            return player, tab
+
+    def edit_tab(self, player, tab, name=None, sendprefix=None, receiveprefix=None, logfile=None):
+        player, tab = self.get_tab(player, tab)
         if name == '':
             raise ValueError
         if sendprefix == '':
             raise ValueError
         if receiveprefix == '':
             raise ValueError
-        misctab = self.players[player][misctab]
-        if name is not None and name not in self.players[player]:
-            self.players[player].misctabs[name] = self.players[player].misctabs.pop(misctab.name)
-            misctab.name = name
+        if name is not None and name not in player.tabs:
+            player.tabs[name] = player.tabs.pop(tab.name)
+            tab.name = name
         if sendprefix is not None:
-            misctab.sendprefix = sendprefix
+            tab.sendprefix = sendprefix
         if receiveprefix is not None:
-            misctab.receiveprefix = receiveprefix
+            tab.receiveprefix = receiveprefix
         if autoconnect is not None:
-            misctab.autoconnect = autoconnect
+            tab.autoconnect = autoconnect
         if logfile is not None:
-            misctab.logfile = logfile
+            tab.logfile = logfile
 
-    def delete_misctab(self, player, misctab):
-        if player not in self.players:
-            raise CharacterDoesNotExist(player)
-        if misctab not in self.players[player]:
-            raise CharacterDoesNotExist(player, misctab)
-        del self.players[player].misctabs[misctab]
+    def delete_tab(self, player, tab):
+        player, _ = self.get_tab(player, tab)
+        del player.tabs[tab]

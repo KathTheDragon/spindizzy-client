@@ -1,6 +1,5 @@
-from . import network, characters
+from . import characters
 
 class Client:
     def __init__(self):
-        self.network = network.Network()
         self.characters = characters.CharacterList()

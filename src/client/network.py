@@ -10,12 +10,11 @@ class ConnectionOpen:
     pass
 
 class Connection:
-    def __init__(self, player):
-        self.login = (player.name, player.password)  # player.login?
+    def __init__(self, name, password):
+        self.login = (name, password)
         self.isopen = False
         self.sent = []
         self.received = []
-        self.open()
 
     def send(self, message):
         if not self.isopen:
@@ -62,30 +61,3 @@ class Connection:
         # To-do: Add disconnect postamble
         self.socket.close()
 
-class Network:
-    def __init__(self):
-        self.connections = {}
-
-    def connect(self, player):
-        conn = self.connections.get(player.name)
-        if conn is None:
-            self.connections[player.name] = Connection(player)
-        elif not conn.isopen:
-            conn.open()
-
-    def disconnect(self, player):
-        conn = self.connections.get(player.name)
-        if conn is not None and conn.isopen:
-            conn.close()
-
-    def send(self, player, message):
-        conn = self.connections.get(player.name)
-        if conn is not None and conn.isopen:
-            conn.send(message)
-
-    def receive(self, player):
-        conn = self.connections.get(player.name)
-        if conn is not None and conn.isopen:
-            return conn.receive()
-        else:
-            return ''
