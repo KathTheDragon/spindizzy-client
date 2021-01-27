@@ -28,10 +28,6 @@ class CharacterDoesNotExist(Exception):
         else:
             super().__init__(f'Player {player!r} does not exist')
 
-def loadchars():
-    with charfile.open() as f:
-        return load(Player, json.load(f))
-
 def load(cls, characters):
     return {name: cls.load(name, data) for name, data in characters.items()}
 
@@ -62,8 +58,7 @@ class Player(Character):
     password: str
     autoconnect: bool = False
     postconnect: list[str] = field(default_factory=list)
-    puppets: dict[str, 'Puppet'] = field(default_factory=dict)
-    misctabs: dict[str, 'MiscTab'] = field(default_factory=dict)
+    tabs: dict[str, 'Tab'] = field(default_factory=dict)
 
     @staticmethod
     def kwargs(data):
@@ -71,29 +66,22 @@ class Player(Character):
             password=data.get('password'),
             autoconnect=data.get('auto-connect', False),
             postconnect=data.get('post-connect', []),
-            puppets=load(Puppet, data.get('puppets', {})),
-            misctabs=load(MiscTab, data.get('misc-tabs', {}))
+            tabs=(
+                load(Puppet, data.get('puppets', {})) |
+                load(Tab, data.get('misc-tabs', {}))
+            ),
         )
 
     def save(self):
+        puppets = {name: char for name, char in self.tabs.items() if isinstance(char, Puppet)}
+        misctabs = {name: char for name, char in self.tabs.items() if not isinstance(char, Puppet)}
         return super().save() | {
             'password': self.password,
             'auto-connect': self.autoconnect,
             'post-connect': self.postconnect,
-            'puppets': save(self.puppets),
-            'misc-tabs': save(self.misctabs)
+            'puppets': save(puppets),
+            'misc-tabs': save(misctabs)
         }
-
-    def __getitem__(self, puppet):
-        if puppet in self.puppets:
-            return self.puppets[puppet]
-        elif puppet in self.misctabs:
-            return self.misctabs[puppet]
-        else:
-            raise KeyError  # To-do: add an error message
-
-    def __contains__(self, puppet):
-        return puppet in self.puppets or puppet in self.misctabs
 
 @dataclass
 class Puppet(Character):
@@ -150,33 +138,11 @@ class CharacterList:
         with charfile.open(mode='w') as f:
             json.dump(save(self.players), f)
 
-    def __iter__(self):
+    def characters(self):
         for name, player in self.players.items():
             yield name, ''
-            for puppet in player.puppets:
-                yield name, puppet
-            for misctab in player.misctabs:
-                yield name, misctab
-
-    def __getitem__(self, character):
-        if isinstance(character, str):
-            return self.players[character]
-        elif isinstance(character, tuple):
-            player, puppet = character
-            if puppet == '':
-                return self.players[player]
-            else:
-                return self.players[player][puppet]
-        else:
-            raise TypeError  # To-do: Add an error message
-
-    def __contains__(self, character):
-        try:
-            self[character]
-        except KeyError:
-            return False
-        else:
-            return True
+            for tab in player.tabs:
+                yield name, tab
 
     def new_player(self, name, password, postconnect=None, autoconnect=False, logfile=''):
         if name in self.players:
