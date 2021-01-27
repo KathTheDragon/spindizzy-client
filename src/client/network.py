@@ -51,13 +51,11 @@ class Connection:
             socket.create_connection(('muck.spindizzy.org', 7073), 1),
             server_hostname='muck.spindizzy.org'
         )
-        # To-do: Add connect preamble
         self.send('connect {} {}'.format(*self.login))
 
     def close(self):
         if not self.isopen:
             raise ConnectionClosed()
         self.isopen = False
-        # To-do: Add disconnect postamble
         self.socket.close()
 
