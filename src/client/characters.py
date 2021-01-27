@@ -84,18 +84,38 @@ class Player(Character):
         }
 
 @dataclass
-class Puppet(Character):
+class Tab(Character):
+    __required__ = ['send-prefix', 'receive-prefix']
+    sendprefix: str
+    receiveprefix: str
+    removeprefix: bool = False
+
+    @staticmethod
+    def kwargs(data):
+        return super().kwargs(data) | dict(
+            sendprefix=data.get('send-prefix'),
+            receiveprefix=data.get('receive-prefix'),
+            removeprefix=data.get('remove-prefix', False),
+        )
+
+    def save(self):
+        return super().save() | {
+            'send-prefix': self.sendprefix,
+            'receive-prefix': self.receiveprefix,
+            'remove-prefix': self.removeprefix,
+        }
+
+@dataclass
+class Puppet(Tab):
     __required__: ClassVar = ['action']
     action: str
 
     @staticmethod
-    def load(name, data):
-        return super().kwargs(data) | dict(
-            action=data.get('action')
-        )
+    def kwargs(name, data):
+        return super(Tab).kwargs(data) | dict(action=data.get('action'))
 
     def save(self):
-        return super().save() | {'action': self.action}
+        return super(Tab).save() | {'action': self.action}
 
     @property
     def sendprefix(self):
@@ -108,26 +128,6 @@ class Puppet(Character):
     @property
     def removeprefix(self):
         return True
-
-@dataclass
-class MiscTab(Character):
-    __required__ = ['send-prefix', 'receive-prefix']
-    sendprefix: str
-    receiveprefix: str
-    removeprefix: bool = False
-
-    @staticmethod
-    def kwargs(data):
-        return super().kwargs(data) | dict(
-            sendprefix=data.get('send-prefix'),
-            receiveprefix=data.get('receive-prefix')
-        )
-
-    def save(self):
-        return super().save() | {
-            'send-prefix': self.sendprefix,
-            'receive-prefix': self.receiveprefix
-        }
 
 class CharacterList:
     def __init__(self):
