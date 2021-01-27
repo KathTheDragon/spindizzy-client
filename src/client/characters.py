@@ -285,7 +285,7 @@ class CharacterList:
         if tab not in player.tabs:
             raise CharacterDoesNotExist(player.name, tab=tab)
         tab = player.tabs[tab]
-        if not isinstance(tab, Tab):
+        if not isinstance(tab, Tab) or isinstance(tab, Puppet):
             raise CharacterDoesNotExist(player.name, tab=tab.name)
         else:
             return player, tab
