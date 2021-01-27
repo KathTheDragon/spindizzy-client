@@ -38,6 +38,7 @@ def save(characters):
 class Character:
     name: str
     logfile: str
+    buffer: list[str] = field(init=False, default_factory=list, repr=False, compare=False)
 
     @staticmethod
     def kwargs(data):
