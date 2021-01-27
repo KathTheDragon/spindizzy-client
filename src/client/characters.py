@@ -16,27 +16,24 @@ class MissingCharacterData(InvalidCharacterData):
     def __init__(self, cls, name, key):
         super().__init__(f'{cls.__name__} {name!r} missing key {key!r}')
 
-class CharacterAlreadyExists(Exception):
-    def __init__(self, player, *, puppet='', tab=''):
+class InvalidCharacter(Exception):
+    def __init__(self, player, *, puppet='', tab='', reason=''):
         if puppet and tab:
             raise ValueError('cannot specify both puppet and tab')
         elif puppet:
-            super().__init__(f'Puppet {puppet!r} of {player!r} already exists')
+            super().__init__(f'Puppet {puppet!r} of {player!r} {reason}')
         elif tab:
-            super().__init__(f'Tab {tab!r} of {player!r} already exists')
+            super().__init__(f'Tab {tab!r} of {player!r} {reason}')
         else:
-            super().__init__(f'Player {player!r} already exists')
+            super().__init__(f'Player {player!r} {reason}')
 
-class CharacterDoesNotExist(Exception):
+class CharacterAlreadyExists(InvalidCharacter):
     def __init__(self, player, *, puppet='', tab=''):
-        if puppet and tab:
-            raise ValueError('cannot specify both puppet and tab')
-        elif puppet:
-            super().__init__(f'Puppet {puppet!r} of {player!r} does not exist')
-        elif tab:
-            super().__init__(f'Tab {tab!r} of {player!r} does not exist')
-        else:
-            super().__init__(f'Player {player!r} does not exist')
+        super().__init__(player, puppet=puppet, tab=tab, reason='already exists')
+
+class CharacterDoesNotExist(InvalidCharacter):
+    def __init__(self, player, *, puppet='', tab=''):
+        super().__init__(player, puppet=puppet, tab=tab, reason='does not exist')
 
 def load(cls, characters):
     return {name: cls.load(name, data) for name, data in characters.items()}
