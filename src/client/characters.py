@@ -52,6 +52,11 @@ class Character:
                 raise MissingCharacterData(cls, name, key)
         return cls(name=name, **cls.kwargs(data))
 
+    def save(self):
+        return {
+            'log-file': self.logfile
+        }
+
 @dataclass
 class Player(Character):
     __required__: ClassVar = ['password']
