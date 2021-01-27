@@ -62,9 +62,9 @@ class Character:
 class Player(Character):
     __required__: ClassVar = ['password']
     password: str
-    postconnect: list[str]
-    puppets: dict[str, 'Puppet']
-    misctabs: dict[str, 'MiscTab']
+    postconnect: list[str] = field(default_factory=list)
+    puppets: dict[str, 'Puppet'] = field(default_factory=dict)
+    misctabs: dict[str, 'MiscTab'] = field(default_factory=dict)
 
     @staticmethod
     def kwargs(data):
@@ -180,7 +180,7 @@ class CharacterList:
     def new_player(self, name, password, postconnect=None, autoconnect=False, logfile=''):
         if name in self.players:
             raise CharacterAlreadyExists(name)
-        self.players[name] = Player(name, autoconnect, logfile, password, postconnect, {}, {})
+        self.players[name] = Player(name, autoconnect, logfile, password, postconnect)
 
     def edit_player(self, player, name=None, password=None, postconnect=None, autoconnect=None, logfile=None):
         if player not in self.players:
