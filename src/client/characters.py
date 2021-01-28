@@ -47,6 +47,7 @@ class Character:
     name: str
     logfile: LogFile
     buffer: list[str] = field(init=False, default_factory=list, repr=False, compare=False)
+    connected: bool = field(init=False, default=False, repr=False, compare=False)
 
     @staticmethod
     def kwargs(data):
@@ -68,9 +69,19 @@ class Character:
 
     ## API
     def receive(self, message):
+        if not self.connected:
+            self.connect()
         self.buffer.append(message)
         self.logfile.log(message)
         return True
+
+    def connect(self):
+        # Connection preamble
+        self.logfile.start()
+
+    def disconnect(self):
+        # Disconnection postamble
+        self.logfile.stop()
 
 @dataclass
 class Player(Character):
@@ -112,13 +123,13 @@ class Player(Character):
     # API
     def connect(self):
         self.connection.open()
-        # Connection preamble in buffer and log
+        super().connect()
         for line in self.postconnect:
             self.send(line)
 
     def disconnect(self):
         self.connection.close()
-        # Disconnection postamble in buffer and log
+        super().disconnect()
 
     def send(self, message, puppet=''):
         if puppet:
