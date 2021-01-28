@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import ClassVar
 
 from .network import Connection
+from .logging import LogFile
 
 from .config import configdir
 charfile = configdir / 'characters.json'
@@ -44,13 +45,13 @@ def save(characters):
 @dataclass
 class Character:
     name: str
-    logfile: str
+    logfile: LogFile
     buffer: list[str] = field(init=False, default_factory=list, repr=False, compare=False)
 
     @staticmethod
     def kwargs(data):
         return dict(
-            logfile=data.get('log-file', '')
+            logfile=LogFile(data.get('log-file', ''))
         )
 
     @classmethod
@@ -62,16 +63,13 @@ class Character:
 
     def save(self):
         return {
-            'log-file': self.logfile
+            'log-file': str(self.logfile.file or '')
         }
 
     ## API
     def receive(self, message):
         self.buffer.append(message)
-        if self.logfile:
-            with open(self.logfile, mode='a') as f:
-                # Overly simplistic
-                f.write(message)
+        self.logfile.log(message)
         return True
 
 @dataclass
