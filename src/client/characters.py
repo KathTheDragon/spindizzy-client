@@ -290,7 +290,7 @@ class CharacterList:
 
     def new_tab(self, player, name, sendprefix, receiveprefix, logfile=''):
         player = self.get_player(player)
-        if name in self.players[player].tabs:
+        if name in player.tabs:
             raise CharacterAlreadyExists(player, tab=name)
         player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix)
         self.save()
