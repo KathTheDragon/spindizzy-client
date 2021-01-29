@@ -252,7 +252,7 @@ class CharacterList:
     def new_puppet(self, player, name, action, logfile=''):
         player = self.get_player(player)
         if name in player.tabs:
-            raise CharacterAlreadyExists(player, puppet=name)
+            raise CharacterAlreadyExists(player.name, puppet=name)
         player.tabs[name] = Puppet(name, logfile, action)
         self.save()
 
@@ -291,7 +291,7 @@ class CharacterList:
     def new_tab(self, player, name, sendprefix, receiveprefix, logfile=''):
         player = self.get_player(player)
         if name in player.tabs:
-            raise CharacterAlreadyExists(player, tab=name)
+            raise CharacterAlreadyExists(player.name, tab=name)
         player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix)
         self.save()
 
