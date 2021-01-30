@@ -130,6 +130,8 @@ class Player(Character):
     def disconnect(self):
         self.connection.close()
         super().disconnect()
+        for char in self.tabs.values():
+            char.disconnect()
 
     def send(self, message, puppet=''):
         if puppet:
