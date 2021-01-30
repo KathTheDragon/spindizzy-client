@@ -49,23 +49,25 @@ class Character:
     buffer: list[str] = field(init=False, default_factory=list, repr=False, compare=False)
     connected: bool = field(init=False, default=False, repr=False, compare=False)
 
-    @staticmethod
-    def kwargs(data):
-        return dict(
-            logfile=LogFile(data.get('log-file', ''))
+    @classmethod
+    def kwargs(cls, data):
+        return (
+            dict(logfile=LogFile(data.get('log-file', ''))) |
+            {attr: data.get(key, default) for attr, (key, default) in cls.__attrs__.items()}
         )
 
     @classmethod
     def load(cls, name, data):
-        for key in cls.__required__:
-            if data.get(key, '') == '':
+        for key, default in cls.__attrs__.values():
+            if default is None and data.get(key, '') == '':
                 raise MissingCharacterData(cls, name, key)
         return cls(name=name, **cls.kwargs(data))
 
     def save(self):
-        return {
-            'log-file': str(self.logfile.file or '')
-        }
+        return (
+            {'log-file': str(self.logfile.file or '')} |
+            {key: getattr(self, attr) for attr, (key, default) in cls.__attrs__.items()}
+        )
 
     ## API
     def receive(self, message):
@@ -85,7 +87,11 @@ class Character:
 
 @dataclass
 class Player(Character):
-    __required__: ClassVar = ['password']
+    __attrs__: ClassVar = {
+        'password': ('password', None),
+        'autoconnect': ('auto-connect', False),
+        'postconnect': ('post-connect', ()),
+    }
     password: str
     autoconnect: bool = False
     postconnect: list[str] = field(default_factory=list)
@@ -100,9 +106,6 @@ class Player(Character):
     @staticmethod
     def kwargs(data):
         return super().kwargs(data) | dict(
-            password=data.get('password'),
-            autoconnect=data.get('auto-connect', False),
-            postconnect=data.get('post-connect', []),
             tabs=(
                 load(Puppet, data.get('puppets', {})) |
                 load(Tab, data.get('misc-tabs', {}))
@@ -113,9 +116,6 @@ class Player(Character):
         puppets = {name: char for name, char in self.tabs.items() if isinstance(char, Puppet)}
         tabs = {name: char for name, char in self.tabs.items() if not isinstance(char, Puppet)}
         return super().save() | {
-            'password': self.password,
-            'auto-connect': self.autoconnect,
-            'post-connect': self.postconnect,
             'puppets': save(puppets),
             'misc-tabs': save(tabs)
         }
@@ -146,25 +146,14 @@ class Player(Character):
 
 @dataclass
 class Tab(Character):
-    __required__ = ['send-prefix', 'receive-prefix']
+    __attrs__: ClassVar = {
+        'sendprefix': ('send-prefix', None),
+        'receiveprefix': ('receive-prefix', None),
+        'removeprefix': ('remove-prefix', False),
+    }
     sendprefix: str
     receiveprefix: str
     removeprefix: bool = False
-
-    @staticmethod
-    def kwargs(data):
-        return super().kwargs(data) | dict(
-            sendprefix=data.get('send-prefix'),
-            receiveprefix=data.get('receive-prefix'),
-            removeprefix=data.get('remove-prefix', False),
-        )
-
-    def save(self):
-        return super().save() | {
-            'send-prefix': self.sendprefix,
-            'receive-prefix': self.receiveprefix,
-            'remove-prefix': self.removeprefix,
-        }
 
     ## API
     def receive(self, message):
@@ -176,15 +165,10 @@ class Tab(Character):
 
 @dataclass
 class Puppet(Tab):
-    __required__: ClassVar = ['action']
+    __attrs__: ClassVar = {
+        'action': ('action', None),
+    }
     action: str
-
-    @staticmethod
-    def kwargs(name, data):
-        return super(Tab).kwargs(data) | dict(action=data.get('action'))
-
-    def save(self):
-        return super(Tab).save() | {'action': self.action}
 
     @property
     def sendprefix(self):
