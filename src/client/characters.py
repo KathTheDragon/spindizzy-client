@@ -204,6 +204,7 @@ class CharacterList:
             raise CharacterAlreadyExists(name)
         self.players[name] = Player(name, logfile, password, autoconnect, postconnect)
         self.save()
+        return self.players[name]
 
     def get_player(self, player):
         if player not in self.players:
@@ -241,6 +242,7 @@ class CharacterList:
             raise CharacterAlreadyExists(player.name, puppet=name)
         player.tabs[name] = Puppet(name, logfile, action)
         self.save()
+        return player.tabs[name]
 
     def get_puppet(self, player, puppet):
         player = self.get_player(player)
@@ -280,6 +282,7 @@ class CharacterList:
             raise CharacterAlreadyExists(player.name, tab=name)
         player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix)
         self.save()
+        return player.tabs[name]
 
     def get_tab(self, player, tab):
         player = self.get_player(player)
