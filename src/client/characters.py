@@ -214,11 +214,14 @@ class CharacterList:
                 yield name, tab
 
     def new_player(self, name, password, autoconnect=False, postconnect=(), logfile=''):
-        if name in self.players:
+        if name == '':
+            raise ValueError('name cannot be blank')
+        elif name in self.players:
             raise CharacterAlreadyExists(name)
-        self.players[name] = Player(name, logfile, password, autoconnect, postconnect)
-        self.save()
-        return self.players[name]
+        else:
+            self.players[name] = Player(name, logfile, password, autoconnect, postconnect)
+            self.save()
+            return self.players[name]
 
     def get_player(self, player):
         if player not in self.players:
@@ -240,11 +243,14 @@ class CharacterList:
 
     def new_puppet(self, player, name, action, logfile=''):
         player = self.get_player(player)
-        if name in player.tabs:
+        if name == '':
+            raise ValueError('name cannot be blank')
+        elif name in player.tabs:
             raise CharacterAlreadyExists(player.name, puppet=name)
-        player.tabs[name] = Puppet(name, logfile, action)
-        self.save()
-        return player.tabs[name]
+        else:
+            player.tabs[name] = Puppet(name, logfile, action)
+            self.save()
+            return player.tabs[name]
 
     def get_puppet(self, player, puppet):
         player = self.get_player(player)
@@ -269,13 +275,16 @@ class CharacterList:
         del player.tabs[puppet]
         self.save()
 
-    def new_tab(self, player, name, sendprefix, receiveprefix, logfile=''):
+    def new_tab(self, player, name, sendprefix, receiveprefix, removeprefix=False, logfile=''):
         player = self.get_player(player)
-        if name in player.tabs:
+        if name == '':
+            raise ValueError('name cannot be blank')
+        elif name in player.tabs:
             raise CharacterAlreadyExists(player.name, tab=name)
-        player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix)
-        self.save()
-        return player.tabs[name]
+        else:
+            player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix, removeprefix)
+            self.save()
+            return player.tabs[name]
 
     def get_tab(self, player, tab):
         player = self.get_player(player)
