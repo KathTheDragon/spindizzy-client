@@ -69,6 +69,20 @@ class Character:
             {key: getattr(self, attr) for attr, (key, default) in cls.__attrs__.items()}
         )
 
+    def _edit(self, **kwargs):
+        attrs = {}
+        if 'logfile' in kwargs:
+            attrs['logfile'] = LogFile(kwargs.pop('logfile'))
+        for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
+            if default is None and kwargs.get(attr) == '':
+                raise ValueError(f'{attr} cannot be blank')
+            elif attr in kwargs:
+                attrs[attr] = kwargs.pop(attr)
+        if kwargs:
+            raise TypeError(f'{next(iter(kwargs))} is not an editable attribute of {self.__class__.__name__!r}')
+        for attr, value in attrs.items():
+            setattr(self, attr, value)
+
     ## API
     def receive(self, message):
         if not self.connected:
@@ -212,23 +226,11 @@ class CharacterList:
         else:
             return self.players[player]
 
-    def edit_player(self, player, name=None, password=None, autoconnect=None, postconnect=None, logfile=None):
-        player = self.get_player(player)
-        if name == '':
-            raise ValueError
-        if password == '':
-            raise ValueError
-        if name is not None and name not in self.players:
-            self.players[name] = self.players.pop(player.name)
-            player.name = name
-        if password is not None:
-            player.password = password
-        if autoconnect is not None:
-            player.autoconnect = autoconnect
-        if postconnect is not None:
-            player.postconnect = postconnect
-        if logfile is not None:
-            player.logfile = logfile
+    def edit_player(self, player, **kwargs):
+        self.get_player(player)._edit(**kwargs)
+        if 'name' in kwargs:
+            name = kwargs['name']
+            self.players[name] = self.players.pop(player)
         self.save()
 
     def delete_player(self, player):
@@ -254,21 +256,12 @@ class CharacterList:
         else:
             return player, puppet
 
-    def edit_puppet(self, player, puppet, name=None, action=None, logfile=None):
-        player, puppet = self.get_puppet(player, puppet)
-        if name == '':
-            raise ValueError
-        if action == '':
-            raise ValueError
-        if name is not None and name not in player.tabs:
-            player.tabs[name] = player.tabs.pop(puppet.name)
-            puppet.name = name
-        if action is not None:
-            puppet.action = action
-        if autoconnect is not None:
-            puppet.autoconnect = autoconnect
-        if logfile is not None:
-            puppet.logfile = logfile
+    def edit_puppet(self, player, puppet, **kwargs):
+        player, _puppet = self.get_puppet(player, puppet)
+        _puppet._edit(**kwargs)
+        if 'name' in kwargs:
+            name = kwargs['name']
+            player.tabs[name] = player.tabs.pop(puppet)
         self.save()
 
     def delete_puppet(self, player, puppet):
@@ -294,25 +287,12 @@ class CharacterList:
         else:
             return player, tab
 
-    def edit_tab(self, player, tab, name=None, sendprefix=None, receiveprefix=None, logfile=None):
-        player, tab = self.get_tab(player, tab)
-        if name == '':
-            raise ValueError
-        if sendprefix == '':
-            raise ValueError
-        if receiveprefix == '':
-            raise ValueError
-        if name is not None and name not in player.tabs:
-            player.tabs[name] = player.tabs.pop(tab.name)
-            tab.name = name
-        if sendprefix is not None:
-            tab.sendprefix = sendprefix
-        if receiveprefix is not None:
-            tab.receiveprefix = receiveprefix
-        if autoconnect is not None:
-            tab.autoconnect = autoconnect
-        if logfile is not None:
-            tab.logfile = logfile
+    def edit_tab(self, player, tab, **kwargs):
+        player, _tab = self.get_tab(player, tab)
+        _tab._edit(**kwargs)
+        if 'name' in kwargs:
+            name = kwargs['name']
+            player.tabs[name] = player.tabs.pop(tab)
         self.save()
 
     def delete_tab(self, player, tab):
