@@ -261,7 +261,6 @@ class CharacterList:
             raise CharacterAlreadyExists(name)
         else:
             self.players[name] = Player(name, **kwargs)
-            self.save()
             return self.players[name]
 
     def get_player(self, player):
@@ -275,45 +274,36 @@ class CharacterList:
         if 'name' in kwargs:
             name = kwargs['name']
             self.players[name] = self.players.pop(player)
-        self.save()
 
     def delete_player(self, player):
         self.get_player(player)
         del self.players[player]
+
+    # Character Management
+    def new(self, type, player='', **kwargs):
+        if type == 'player':
+            char = self.new_player(**kwargs)
+        else:
+            char = self.get_player(player).new(type, **kwargs)
+        self.save()
+        return char
+
+    def get(self, type, player, char=''):
+        if type == 'player':
+            return self.get_player(player)
+        else:
+            return self.get_player(player).get(type, char)
+
+    def edit(self, type, player, char='', **kwargs):
+        if type == 'player':
+            self.edit_player(player, **kwargs):
+        else:
+            self.get_player(player).edit(type, char, **kwargs)
         self.save()
 
-    # Puppet management
-    def new_puppet(self, player, **kwargs):
-        puppet = self.get_player(player).new('puppet', **kwargs)
-        self.save()
-        return puppet
-
-    def get_puppet(self, player, puppet):
-        player = self.get_player(player)
-        return player, player.get('puppet', puppet)
-
-    def edit_puppet(self, player, puppet, **kwargs):
-        self.get_player(player).edit('puppet', puppet, **kwargs)
-        self.save()
-
-    def delete_puppet(self, player, puppet):
-        self.get_player(player).delete('puppet', puppet)
-        self.save()
-
-    # Non-puppet Tab management
-    def new_tab(self, player, **kwargs):
-        tab = self.get_player(player).new('tab', **kwargs)
-        self.save()
-        return tab
-
-    def get_tab(self, player, tab):
-        player = self.get_player(player)
-        return player, player.get('tab', tab)
-
-    def edit_tab(self, player, tab, **kwargs):
-        self.get_player(player).edit('tab', tab, **kwargs)
-        self.save()
-
-    def delete_tab(self, player, tab):
-        self.get_player(player).delete('tab', tab)
+    def delete(self, type, player, char=''):
+        if type == 'player':
+            self.delete_player(player)
+        else:
+            self.get_player(player).delete(type, char)
         self.save()
