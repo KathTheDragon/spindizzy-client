@@ -42,6 +42,14 @@ def load(cls, characters):
 def save(characters):
     return {name: character.save() for name, character in characters.items()}
 
+def gettype(type):
+    if type == 'puppet':
+        return Puppet
+    elif type == 'tab':
+        return Tab
+    else:
+        ValueError(f'invalid type {type!r}')
+
 @dataclass
 class Character:
     name: str
@@ -69,6 +77,7 @@ class Character:
             {key: getattr(self, attr) for attr, (key, default) in cls.__attrs__.items()}
         )
 
+    ## Self Management
     def _edit(self, **kwargs):
         attrs = {}
         if 'logfile' in kwargs:
@@ -133,6 +142,37 @@ class Player(Character):
             'puppets': save(puppets),
             'misc-tabs': save(tabs)
         }
+
+    # Puppet/Tab Management
+    def new(self, type, *, name='', **kwargs):
+        cls = gettype(type)
+        if name == '':
+            raise ValueError('name cannot be blank')
+        elif name in self.tabs:
+            raise CharacterAlreadyExists(self.name, **{type: name})
+        else:
+            self.tabs[name] = cls(name, **kwargs)
+            return self.tabs[name]
+
+    def get(self, type, tab):
+        exc = CharacterDoesNotExist(player, **{type: tab})
+        cls = gettype(type)
+        if tab not in self.tabs:
+            raise exc
+        char = self.tabs[tab]
+        if not isinstance(char, cls):
+            raise exc
+        return char
+
+    def edit(self, type, tab, **kwargs):
+        self.get(type, tab)._edit(**kwargs)
+        if 'name' in kwargs:
+            name = kwargs['name']
+            self.tabs[name] = self.tabs.pop(tab)
+
+    def delete(self, type, tab):
+        self.get(type, tab)
+        del self.tabs[tab]
 
     # API
     def connect(self):
@@ -213,13 +253,14 @@ class CharacterList:
             for tab in player.tabs:
                 yield name, tab
 
-    def new_player(self, name, password, autoconnect=False, postconnect=(), logfile=''):
+    # Player management
+    def new_player(self, *, name='', **kwargs):
         if name == '':
             raise ValueError('name cannot be blank')
         elif name in self.players:
             raise CharacterAlreadyExists(name)
         else:
-            self.players[name] = Player(name, logfile, password, autoconnect, postconnect)
+            self.players[name] = Player(name, **kwargs)
             self.save()
             return self.players[name]
 
@@ -241,70 +282,38 @@ class CharacterList:
         del self.players[player]
         self.save()
 
-    def new_puppet(self, player, name, action, logfile=''):
-        player = self.get_player(player)
-        if name == '':
-            raise ValueError('name cannot be blank')
-        elif name in player.tabs:
-            raise CharacterAlreadyExists(player.name, puppet=name)
-        else:
-            player.tabs[name] = Puppet(name, logfile, action)
-            self.save()
-            return player.tabs[name]
+    # Puppet management
+    def new_puppet(self, player, **kwargs):
+        puppet = self.get_player(player).new('puppet', **kwargs)
+        self.save()
+        return puppet
 
     def get_puppet(self, player, puppet):
         player = self.get_player(player)
-        if puppet not in player.tabs:
-            raise CharacterDoesNotExist(player.name, puppet=puppet)
-        puppet = player.tabs[puppet]
-        if not isinstance(puppet, Puppet):
-            raise CharacterDoesNotExist(player.name, puppet=puppet.name)
-        else:
-            return player, puppet
+        return player, player.get('puppet', puppet)
 
     def edit_puppet(self, player, puppet, **kwargs):
-        player, _puppet = self.get_puppet(player, puppet)
-        _puppet._edit(**kwargs)
-        if 'name' in kwargs:
-            name = kwargs['name']
-            player.tabs[name] = player.tabs.pop(puppet)
+        self.get_player(player).edit('puppet', puppet, **kwargs)
         self.save()
 
     def delete_puppet(self, player, puppet):
-        player, _ = self.get_puppet(player, puppet)
-        del player.tabs[puppet]
+        self.get_player(player).delete('puppet', puppet)
         self.save()
 
-    def new_tab(self, player, name, sendprefix, receiveprefix, removeprefix=False, logfile=''):
-        player = self.get_player(player)
-        if name == '':
-            raise ValueError('name cannot be blank')
-        elif name in player.tabs:
-            raise CharacterAlreadyExists(player.name, tab=name)
-        else:
-            player.tabs[name] = Tab(name, logfile, sendprefix, receiveprefix, removeprefix)
-            self.save()
-            return player.tabs[name]
+    # Non-puppet Tab management
+    def new_tab(self, player, **kwargs):
+        tab = self.get_player(player).new('tab', **kwargs)
+        self.save()
+        return tab
 
     def get_tab(self, player, tab):
         player = self.get_player(player)
-        if tab not in player.tabs:
-            raise CharacterDoesNotExist(player.name, tab=tab)
-        tab = player.tabs[tab]
-        if not isinstance(tab, Tab) or isinstance(tab, Puppet):
-            raise CharacterDoesNotExist(player.name, tab=tab.name)
-        else:
-            return player, tab
+        return player, player.get('tab', tab)
 
     def edit_tab(self, player, tab, **kwargs):
-        player, _tab = self.get_tab(player, tab)
-        _tab._edit(**kwargs)
-        if 'name' in kwargs:
-            name = kwargs['name']
-            player.tabs[name] = player.tabs.pop(tab)
+        self.get_player(player).edit('tab', tab, **kwargs)
         self.save()
 
     def delete_tab(self, player, tab):
-        player, _ = self.get_tab(player, tab)
-        del player.tabs[tab]
+        self.get_player(player).delete('tab', tab)
         self.save()
