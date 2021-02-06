@@ -17,11 +17,12 @@ class LogFile:
             # .write() a header
             return True
 
-    def log(self, line):
+    def log(self, *lines):
         if self.active:
             with self.file.open(mode='a') as f:
-                # Add timestamp prefix
-                f.write(line)
+                for line in lines:
+                    # Add timestamp prefix
+                    f.write(line)
             return True
         else:
             return False

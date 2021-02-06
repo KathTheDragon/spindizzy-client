@@ -93,11 +93,11 @@ class Character:
             setattr(self, attr, value)
 
     ## API
-    def receive(self, message):
+    def receive(self, *messages):
         if not self.connected:
             self.connect()
-        self.buffer.append(message)
-        self.logfile.log(message)
+        self.buffer.extend(messages)
+        self.logfile.log(*messages)
         return True
 
     def connect(self):
@@ -198,21 +198,22 @@ class Player(Character):
         for char in self.tabs.values():
             char.disconnect()
 
-    def send(self, message, puppet=''):
+    def send(self, *messages, puppet=''):
         if puppet:
-            message = self.tabs[puppet].sendprefix + message
-        self.connection.send(message)
+            prefix = self.tabs[puppet].sendprefix
+            messages = [prefix + message for message in messages]
+        self.connection.send(*messages)
 
-    def receive(self, message):
+    def receive(self, *messages):
         for tab in self.tabs:
-            if tab.receive(message):
+            if tab.receive(*messages):
                 return True
         else:
-            return super().receive(message)
+            return super().receive(*messages)
 
     # Internal
     def update(self):
-        self.receive(self.connection.receive())
+        self.receive(*self.connection.receive())
 
 @dataclass
 class Tab(Character):
@@ -226,12 +227,13 @@ class Tab(Character):
     removeprefix: bool = False
 
     ## API
-    def receive(self, message):
-        if not message.startswith(self.receiveprefix):
+    def receive(self, *messages):
+        prefix = self.receiveprefix
+        if not all(message.startswith(prefix) for message in messages):
             return False
         if self.removeprefix:
-            message = message.removeprefix(self.receiveprefix)
-        return super().receive(message)
+            messages = (message.removeprefix(prefix) for message in messages)
+        return super().receive(*messages)
 
 @dataclass
 class Puppet(Tab):

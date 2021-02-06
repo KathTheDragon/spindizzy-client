@@ -16,13 +16,11 @@ class Connection:
         self.sent = []
         self.received = []
 
-    def send(self, message):
+    def send(self, *messages):
         if not self.isopen:
             raise ConnectionClosed()
-        if not message.endswith('\r\n'):
-            message += '\r\n'
-        self.sent.append(message)
-        self.socket.sendall(message.encode())
+        self.sent.extend(messages)
+        self.socket.sendall(('\r\n'.join(messages) + '\r\n').encode())
 
     def receive(self):
         if not self.isopen:
@@ -39,9 +37,9 @@ class Connection:
         except socket.timeout:
             pass
         finally:
-            message = data.decode()
-            self.received.append(message)
-            return message
+            messages = data.decode().splitlines()
+            self.received.extend(messages)
+            return messages
 
     def open(self):
         if self.isopen:
@@ -58,4 +56,3 @@ class Connection:
             raise ConnectionClosed()
         self.isopen = False
         self.socket.close()
-
