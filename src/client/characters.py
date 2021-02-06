@@ -310,7 +310,7 @@ class CharacterList:
 
     def edit(self, type, player, char='', **kwargs):
         if type == 'player':
-            self.edit_player(player, **kwargs):
+            self.edit_player(player, **kwargs)
         else:
             self.get_player(player).edit(type, char, **kwargs)
         self.save()
