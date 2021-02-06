@@ -203,13 +203,16 @@ class Player(Character):
             message = self.tabs[puppet].sendprefix + message
         self.connection.send(message)
 
-    def receive(self):
-        message = self.connection.receive()
+    def receive(self, message):
         for tab in self.tabs:
             if tab.receive(message):
                 return True
         else:
             return super().receive(message)
+
+    # Internal
+    def update(self):
+        self.receive(self.connection.receive())
 
 @dataclass
 class Tab(Character):
