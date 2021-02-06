@@ -103,10 +103,12 @@ class Character:
     def connect(self):
         # Connection preamble
         self.logfile.start()
+        self.connected = True
 
     def disconnect(self):
         # Disconnection postamble
         self.logfile.stop()
+        self.connected = False
 
 @dataclass
 class Player(Character):
