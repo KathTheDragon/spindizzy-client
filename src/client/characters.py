@@ -50,12 +50,30 @@ def gettype(type):
     else:
         ValueError(f'invalid type {type!r}')
 
-@dataclass
 class Character:
-    name: str
-    logfile: LogFile
-    buffer: list[str] = field(init=False, default_factory=list, repr=False, compare=False)
-    connected: bool = field(init=False, default=False, repr=False, compare=False)
+    def __init__(self, **kwargs):
+        attrs = {}
+        for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
+            if default is None and attr not in kwargs:
+                raise TypeError(f'{self.__class__.__name__}() missing required argument {attr!r}')
+            elif default is None and kwargs.get(attr) == '':
+                raise ValueError(f'{self.__class__.__name__}() missing required argument {attr!r}')
+            else:
+                attrs[attr] = kwargs.pop(attr, default)
+        attrs['logfile'] = LogFile(kwargs.pop('logfile', ''))
+        if kwargs:
+            raise TypeError(f'{self.__class__.__name__}() got an unexpected keyword argument {next(iter(kwargs))!r}')
+        for attr, value in attrs.items():
+            setattr(self, attr, value)
+        self.buffer = []
+        self.connected = False
+
+    def __repr__(self):
+        arglist = []
+        for attr in ['name'] + list(self.__attrs__):
+            arglist.append(f'{attr}={getattr(self, attr)!r}')
+        arglist.append(f'logfile={self.logfile.file or ""!r}')
+        return f'{self.__class__.__name__}({", ".join(arglist)})'
 
     @classmethod
     def kwargs(cls, data):
@@ -119,20 +137,19 @@ class Character:
         else:
             return self.buffer[slice(start, stop)]
 
-@dataclass
 class Player(Character):
     __attrs__: ClassVar = {
         'password': ('password', None),
         'autoconnect': ('auto-connect', False),
         'postconnect': ('post-connect', ()),
     }
-    password: str
-    autoconnect: bool = False
-    postconnect: list[str] = field(default_factory=list)
-    tabs: dict[str, 'Tab'] = field(default_factory=dict)
-    connection: Connection = field(init=False, repr=False, compare=False)
-
-    def __post_init__(self):
+    
+    def __init__(self, **kwargs):
+        tabs = kwargs.pop('tabs', {})
+        super().__init__(**kwargs)
+        self.tabs = {}
+        for name, tab in tabs.items():
+            self.tabs[name] = tab
         self.connection = Connection(self.name, self.password)
         if self.autoconnect:
             self.connect()
@@ -217,16 +234,12 @@ class Player(Character):
     def update(self):
         self.receive(*self.connection.receive())
 
-@dataclass
 class Tab(Character):
     __attrs__: ClassVar = {
         'sendprefix': ('send-prefix', None),
         'receiveprefix': ('receive-prefix', None),
         'removeprefix': ('remove-prefix', False),
     }
-    sendprefix: str
-    receiveprefix: str
-    removeprefix: bool = False
 
     ## API
     def receive(self, *messages):
@@ -237,12 +250,10 @@ class Tab(Character):
             messages = (message.removeprefix(prefix) for message in messages)
         return super().receive(*messages)
 
-@dataclass
 class Puppet(Tab):
     __attrs__: ClassVar = {
         'action': ('action', None),
     }
-    action: str
 
     @property
     def sendprefix(self):
