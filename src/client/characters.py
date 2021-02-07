@@ -129,6 +129,7 @@ class Character:
         self.connected = False
 
     def read(self, line=None, start=None, stop=None):
+        self.update()
         if line is not None:
             if start is not None or stop is not None:
                 raise TypeError('cannot specify line together with start or stop')
