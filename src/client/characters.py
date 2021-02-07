@@ -143,12 +143,13 @@ class Player(Character):
         'autoconnect': ('auto-connect', False),
         'postconnect': ('post-connect', ()),
     }
-    
+
     def __init__(self, **kwargs):
         tabs = kwargs.pop('tabs', {})
         super().__init__(**kwargs)
         self.tabs = {}
         for name, tab in tabs.items():
+            tab.player = self
             self.tabs[name] = tab
         self.connection = Connection(self.name, self.password)
         if self.autoconnect:
@@ -215,10 +216,7 @@ class Player(Character):
         for char in self.tabs.values():
             char.disconnect()
 
-    def send(self, *messages, puppet=''):
-        if puppet:
-            prefix = self.tabs[puppet].sendprefix
-            messages = [prefix + message for message in messages]
+    def send(self, *messages):
         self.connection.send(*messages)
 
     def receive(self, *messages):
@@ -241,7 +239,16 @@ class Tab(Character):
         'removeprefix': ('remove-prefix', False),
     }
 
+    def __init__(self, **kwargs):
+        self.player = kwargs.pop('player', None)
+        super().__init__(**kwargs)
+
     ## API
+    def send(self, *messages):
+        prefix = self.sendprefix
+        messages = [prefix + message for message in messages]
+        self.player.send(*messages)
+
     def receive(self, *messages):
         prefix = self.receiveprefix
         if not all(message.startswith(prefix) for message in messages):
@@ -249,6 +256,10 @@ class Tab(Character):
         if self.removeprefix:
             messages = (message.removeprefix(prefix) for message in messages)
         return super().receive(*messages)
+
+    # Internal
+    def update(self):
+        self.player.update()
 
 class Puppet(Tab):
     __attrs__: ClassVar = {
