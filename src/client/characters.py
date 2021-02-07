@@ -93,7 +93,7 @@ class Character:
     def save(self):
         return (
             {'log-file': self.logfile} |
-            {key: getattr(self, attr) for attr, (key, default) in cls.__attrs__.items()}
+            {key: getattr(self, attr) for attr, (key, default) in self.__attrs__.items()}
         )
 
     ## Self Management
