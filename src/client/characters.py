@@ -344,3 +344,8 @@ class CharacterList:
         else:
             self.get_player(player).delete(type, char)
         self.save()
+
+    # Internal
+    def update(self):
+        for player in self.players.values():
+            player.update()
