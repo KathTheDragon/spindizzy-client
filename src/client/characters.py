@@ -116,7 +116,7 @@ class Character:
             self.connect()
         self.buffer.extend(messages)
         self.logfile.log(*messages)
-        return True
+        return ()
 
     def connect(self):
         # Connection preamble
@@ -220,13 +220,9 @@ class Player(Character):
         self.connection.send(*messages)
 
     def receive(self, *messages):
-        for message in messages:
-            for tab in self.tabs:
-                if tab.receive(message):
-                    break
-            else:
-                super().receive(message)
-        return True
+        for tab in self.tabs:
+            messages = tab.receive(*messages)
+        return super().receive(*messages)
 
     # Internal
     def update(self):
@@ -251,11 +247,11 @@ class Tab(Character):
 
     def receive(self, *messages):
         prefix = self.receiveprefix
-        if not all(message.startswith(prefix) for message in messages):
-            return False
+        childmessages = filter(lambda m: m.startswith(prefix), messages)
         if self.removeprefix:
-            messages = (message.removeprefix(prefix) for message in messages)
-        return super().receive(*messages)
+            childmessages = (message.removeprefix(prefix) for message in childmessages)
+        super().receive(*childmessages)
+        return filter(lambda m: not m.startswith(prefix), messages)
 
     # Internal
     def update(self):
