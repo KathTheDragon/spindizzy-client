@@ -22,7 +22,7 @@ class Connection:
             raise ConnectionClosed()
         self.socket.sendall(('\r\n'.join(messages) + '\r\n').encode())
 
-    def recv(self):
+    def run(self):
         if not self.isopen:
             raise ConnectionClosed()
         while self.isopen:
@@ -57,7 +57,7 @@ class Connection:
             socket.create_connection(('muck.spindizzy.org', 7073), 1),
             server_hostname='muck.spindizzy.org'
         )
-        self.thread = Thread(target=self.recv)
+        self.thread = Thread(target=self.run)
         self.thread.start()
         self.send('connect {} {}'.format(*self.login))
 
