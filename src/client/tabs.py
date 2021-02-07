@@ -223,7 +223,8 @@ class Player(Tab):
             self.send(line)
 
     def disconnect(self):
-        self.connection.close()
+        if self.connection.isopen:
+            self.connection.close()
         super().disconnect()
         for tab in self.tabs.values():
             tab.disconnect()
@@ -239,6 +240,8 @@ class Player(Tab):
     # Internal
     def update(self):
         self.receive(*self.connection.receive())
+        if not self.connection.isopen:
+            self.disconnect()
 
 class Misc(Tab):
     __attrs__: ClassVar = {
