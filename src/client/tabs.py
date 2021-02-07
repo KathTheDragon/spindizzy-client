@@ -1,5 +1,4 @@
 import json
-from typing import ClassVar
 
 from . import logging
 from .network import Connection
@@ -139,7 +138,7 @@ class Tab:
             return self.buffer[slice(start, stop)]
 
 class Player(Tab):
-    __attrs__: ClassVar = {
+    __attrs__ = {
         'password': ('password', None),
         'autoconnect': ('auto-connect', False),
         'postconnect': ('post-connect', ()),
@@ -244,7 +243,7 @@ class Player(Tab):
             self.disconnect()
 
 class Misc(Tab):
-    __attrs__: ClassVar = {
+    __attrs__ = {
         'sendprefix': ('send-prefix', None),
         'receiveprefix': ('receive-prefix', None),
         'removeprefix': ('remove-prefix', False),
@@ -273,7 +272,7 @@ class Misc(Tab):
         self.player.update()
 
 class Puppet(Misc):
-    __attrs__: ClassVar = {
+    __attrs__ = {
         'action': ('action', None),
     }
 
