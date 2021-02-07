@@ -197,7 +197,7 @@ class Player(Character):
             return self.tabs[name]
 
     def get(self, type, tab):
-        exc = CharacterDoesNotExist(player, **{type: tab})
+        exc = CharacterDoesNotExist(self.name, **{type: tab})
         cls = gettype(type)
         if tab not in self.tabs:
             raise exc
