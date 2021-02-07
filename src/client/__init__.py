@@ -1,5 +1,5 @@
-from . import characters
+from . import tabs
 
 class Client:
     def __init__(self):
-        self.tabs = characters.TabList()
+        self.tabs = tabs.TabList()
