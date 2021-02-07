@@ -1,57 +1,56 @@
 import json
-from dataclasses import dataclass, field
 from typing import ClassVar
 
 from . import logging
 from .network import Connection
 
 from .config import configdir
-charfile = configdir / 'characters.json'
-if not charfile.exists():
-    with charfile.open(mode='w') as f:
+tabfile = configdir / 'tabs.json'
+if not tabfile.exists():
+    with tabfile.open(mode='w') as f:
         f.write('{}')
 
-class InvalidCharacterData(Exception):
+class InvalidTabData(Exception):
     pass
 
-class MissingCharacterData(InvalidCharacterData):
+class MissingTabData(InvalidTabData):
     def __init__(self, cls, name, key):
         super().__init__(f'{cls.__name__} {name!r} missing key {key!r}')
 
-class InvalidCharacter(Exception):
-    def __init__(self, player, *, puppet='', tab='', reason=''):
+class InvalidTab(Exception):
+    def __init__(self, player, *, puppet='', misc='', reason=''):
         if puppet and tab:
             raise ValueError('cannot specify both puppet and tab')
         elif puppet:
             super().__init__(f'Puppet {puppet!r} of {player!r} {reason}')
         elif tab:
-            super().__init__(f'Tab {tab!r} of {player!r} {reason}')
+            super().__init__(f'Misc {misc!r} of {player!r} {reason}')
         else:
             super().__init__(f'Player {player!r} {reason}')
 
-class CharacterAlreadyExists(InvalidCharacter):
-    def __init__(self, player, *, puppet='', tab=''):
-        super().__init__(player, puppet=puppet, tab=tab, reason='already exists')
+class TabAlreadyExists(InvalidTab):
+    def __init__(self, player, *, puppet='', misc=''):
+        super().__init__(player, puppet=puppet, misc=misc, reason='already exists')
 
-class CharacterDoesNotExist(InvalidCharacter):
-    def __init__(self, player, *, puppet='', tab=''):
-        super().__init__(player, puppet=puppet, tab=tab, reason='does not exist')
+class TabDoesNotExist(InvalidTab):
+    def __init__(self, player, *, puppet='', misc=''):
+        super().__init__(player, puppet=puppet, misc=misc, reason='does not exist')
 
-def load(cls, characters, **kwargs):
-    return {name: cls.load(name, data, **kwargs) for name, data in characters.items()}
+def load(cls, tabs, **kwargs):
+    return {name: cls.load(name, data, **kwargs) for name, data in tabs.items()}
 
-def save(characters):
-    return {name: character.save() for name, character in characters.items()}
+def save(tabs):
+    return {name: tabs.save() for name, tab in tabs.items()}
 
 def gettype(type):
     if type == 'puppet':
         return Puppet
-    elif type == 'tab':
-        return Tab
+    elif type == 'misc':
+        return Misc
     else:
         ValueError(f'invalid type {type!r}')
 
-class Character:
+class Tab:
     def __init__(self, **kwargs):
         attrs = {}
         for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
@@ -87,7 +86,7 @@ class Character:
     def load(cls, name, data, **kwargs):
         for key, default in cls.__attrs__.values():
             if default is None and data.get(key, '') == '':
-                raise MissingCharacterData(cls, name, key)
+                raise MissingTabData(cls, name, key)
         return cls(name=name, **cls.kwargs(data), **kwargs)
 
     def save(self):
@@ -139,7 +138,7 @@ class Character:
         else:
             return self.buffer[slice(start, stop)]
 
-class Player(Character):
+class Player(Tab):
     __attrs__: ClassVar = {
         'password': ('password', None),
         'autoconnect': ('auto-connect', False),
@@ -162,7 +161,7 @@ class Player(Character):
         return super().kwargs(data) | dict(
             tabs=(
                 load(Puppet, data.get('puppets', {})) |
-                load(Tab, data.get('misc-tabs', {}))
+                load(Misc, data.get('misc-tabs', {}))
             ),
         )
 
@@ -173,7 +172,7 @@ class Player(Character):
         player = super().load(name, data)
         player.tabs = (
             load(Puppet, puppets, player=player) |
-            load(Tab, misctabs, player=player)
+            load(Misc, misctabs, player=player)
         )
         return player
 
@@ -185,19 +184,19 @@ class Player(Character):
             'misc-tabs': save(tabs)
         }
 
-    # Puppet/Tab Management
+    # Puppet/Misc Management
     def new(self, type, *, name='', **kwargs):
         cls = gettype(type)
         if name == '':
             raise ValueError('name cannot be blank')
         elif name in self.tabs:
-            raise CharacterAlreadyExists(self.name, **{type: name})
+            raise TabAlreadyExists(self.name, **{type: name})
         else:
             self.tabs[name] = cls(name=name, **kwargs)
             return self.tabs[name]
 
     def get(self, type, tab):
-        exc = CharacterDoesNotExist(self.name, **{type: tab})
+        exc = TabDoesNotExist(self.name, **{type: tab})
         cls = gettype(type)
         if tab not in self.tabs:
             raise exc
@@ -226,8 +225,8 @@ class Player(Character):
     def disconnect(self):
         self.connection.close()
         super().disconnect()
-        for char in self.tabs.values():
-            char.disconnect()
+        for tab in self.tabs.values():
+            tab.disconnect()
 
     def send(self, *messages):
         self.connection.send(*messages)
@@ -241,7 +240,7 @@ class Player(Character):
     def update(self):
         self.receive(*self.connection.receive())
 
-class Tab(Character):
+class Misc(Tab):
     __attrs__: ClassVar = {
         'sendprefix': ('send-prefix', None),
         'receiveprefix': ('receive-prefix', None),
@@ -270,7 +269,7 @@ class Tab(Character):
     def update(self):
         self.player.update()
 
-class Puppet(Tab):
+class Puppet(Misc):
     __attrs__: ClassVar = {
         'action': ('action', None),
     }
@@ -287,13 +286,13 @@ class Puppet(Tab):
     def removeprefix(self):
         return True
 
-class CharacterList:
+class TabList:
     def __init__(self):
-        with charfile.open() as f:
+        with tabfile.open() as f:
             self.players = load(Player, json.load(f))
 
     def save(self):
-        with charfile.open(mode='w') as f:
+        with tabfile.open(mode='w') as f:
             json.dump(save(self.players), f)
 
     def characters(self):
@@ -307,14 +306,14 @@ class CharacterList:
         if name == '':
             raise ValueError('name cannot be blank')
         elif name in self.players:
-            raise CharacterAlreadyExists(name)
+            raise TabAlreadyExists(name)
         else:
             self.players[name] = Player(name=name, **kwargs)
             return self.players[name]
 
     def get_player(self, player):
         if player not in self.players:
-            raise CharacterDoesNotExist(player)
+            raise TabDoesNotExist(player)
         else:
             return self.players[player]
 
@@ -328,7 +327,7 @@ class CharacterList:
         self.get_player(player)
         del self.players[player]
 
-    # Character Management
+    # Tab Management
     def new(self, type, player='', **kwargs):
         if type == 'player':
             char = self.new_player(**kwargs)
@@ -337,24 +336,24 @@ class CharacterList:
         self.save()
         return char
 
-    def get(self, type, player, char=''):
+    def get(self, type, player, tab=''):
         if type == 'player':
             return self.get_player(player)
         else:
-            return self.get_player(player).get(type, char)
+            return self.get_player(player).get(type, tab)
 
-    def edit(self, type, player, char='', **kwargs):
+    def edit(self, type, player, tab='', **kwargs):
         if type == 'player':
             self.edit_player(player, **kwargs)
         else:
-            self.get_player(player).edit(type, char, **kwargs)
+            self.get_player(player).edit(type, tab, **kwargs)
         self.save()
 
-    def delete(self, type, player, char=''):
+    def delete(self, type, player, tab=''):
         if type == 'player':
             self.delete_player(player)
         else:
-            self.get_player(player).delete(type, char)
+            self.get_player(player).delete(type, tab)
         self.save()
 
     # Internal
