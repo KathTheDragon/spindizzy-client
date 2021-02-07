@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import ClassVar
 
+from . import logging
 from .network import Connection
-from .logging import LogFile
 
 from .config import configdir
 charfile = configdir / 'characters.json'
@@ -60,7 +60,7 @@ class Character:
                 raise ValueError(f'{self.__class__.__name__}() missing required argument {attr!r}')
             else:
                 attrs[attr] = kwargs.pop(attr, default)
-        attrs['logfile'] = LogFile(kwargs.pop('logfile', ''))
+        attrs['logfile'] = kwargs.pop('logfile', '')
         if kwargs:
             raise TypeError(f'{self.__class__.__name__}() got an unexpected keyword argument {next(iter(kwargs))!r}')
         for attr, value in attrs.items():
@@ -72,13 +72,13 @@ class Character:
         arglist = []
         for attr in ['name'] + list(self.__attrs__):
             arglist.append(f'{attr}={getattr(self, attr)!r}')
-        arglist.append(f'logfile={self.logfile.file or ""!r}')
+        arglist.append(f'logfile={self.logfile!r}')
         return f'{self.__class__.__name__}({", ".join(arglist)})'
 
     @classmethod
     def kwargs(cls, data):
         return (
-            dict(logfile=LogFile(data.get('log-file', ''))) |
+            dict(logfile=data.get('log-file', '')) |
             {attr: data.get(key, default) for attr, (key, default) in cls.__attrs__.items()}
         )
 
@@ -91,7 +91,7 @@ class Character:
 
     def save(self):
         return (
-            {'log-file': str(self.logfile.file or '')} |
+            {'log-file': self.logfile} |
             {key: getattr(self, attr) for attr, (key, default) in cls.__attrs__.items()}
         )
 
@@ -99,7 +99,7 @@ class Character:
     def _edit(self, **kwargs):
         attrs = {}
         if 'logfile' in kwargs:
-            attrs['logfile'] = LogFile(kwargs.pop('logfile'))
+            attrs['logfile'] = kwargs.pop('logfile')
         for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
             if default is None and kwargs.get(attr) == '':
                 raise ValueError(f'{attr} cannot be blank')
@@ -115,17 +115,17 @@ class Character:
         if not self.connected:
             self.connect()
         self.buffer.extend(messages)
-        self.logfile.log(*messages)
+        logging.log(self.logfile, *messages)
         return ()
 
     def connect(self):
         # Connection preamble
-        self.logfile.start()
+        logging.start(self.logfile)
         self.connected = True
 
     def disconnect(self):
         # Disconnection postamble
-        self.logfile.stop()
+        logging.stop(self.logfile)
         self.connected = False
 
     def read(self, line=None, start=None, stop=None):
