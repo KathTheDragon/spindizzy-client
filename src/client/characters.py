@@ -182,7 +182,7 @@ class Player(Character):
         elif name in self.tabs:
             raise CharacterAlreadyExists(self.name, **{type: name})
         else:
-            self.tabs[name] = cls(name, **kwargs)
+            self.tabs[name] = cls(name=name, **kwargs)
             return self.tabs[name]
 
     def get(self, type, tab):
@@ -298,7 +298,7 @@ class CharacterList:
         elif name in self.players:
             raise CharacterAlreadyExists(name)
         else:
-            self.players[name] = Player(name, **kwargs)
+            self.players[name] = Player(name=name, **kwargs)
             return self.players[name]
 
     def get_player(self, player):
