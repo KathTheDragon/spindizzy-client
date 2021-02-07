@@ -233,7 +233,7 @@ class Player(Character):
         self.connection.send(*messages)
 
     def receive(self, *messages):
-        for tab in self.tabs:
+        for tab in self.tabs.values():
             messages = tab.receive(*messages)
         return super().receive(*messages)
 
