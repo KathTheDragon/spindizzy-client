@@ -175,6 +175,7 @@ class Player(Character):
             load(Puppet, puppets, player=player) |
             load(Tab, misctabs, player=player)
         )
+        return player
 
     def save(self):
         puppets = {name: char for name, char in self.tabs.items() if isinstance(char, Puppet)}
