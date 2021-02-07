@@ -37,8 +37,8 @@ class CharacterDoesNotExist(InvalidCharacter):
     def __init__(self, player, *, puppet='', tab=''):
         super().__init__(player, puppet=puppet, tab=tab, reason='does not exist')
 
-def load(cls, characters):
-    return {name: cls.load(name, data) for name, data in characters.items()}
+def load(cls, characters, **kwargs):
+    return {name: cls.load(name, data, **kwargs) for name, data in characters.items()}
 
 def save(characters):
     return {name: character.save() for name, character in characters.items()}
@@ -84,11 +84,11 @@ class Character:
         )
 
     @classmethod
-    def load(cls, name, data):
+    def load(cls, name, data, **kwargs):
         for key, default in cls.__attrs__.values():
             if default is None and data.get(key, '') == '':
                 raise MissingCharacterData(cls, name, key)
-        return cls(name=name, **cls.kwargs(data))
+        return cls(name=name, **cls.kwargs(data), **kwargs)
 
     def save(self):
         return (
@@ -164,6 +164,16 @@ class Player(Character):
                 load(Puppet, data.get('puppets', {})) |
                 load(Tab, data.get('misc-tabs', {}))
             ),
+        )
+
+    @classmethod
+    def load(cls, name, data):
+        puppets = data.get('puppets', {})
+        misctabs = data.get('misctabs', {})
+        player = super().load(name, data)
+        player.tabs = (
+            load(Puppet, puppets, player=player) |
+            load(Tab, misctabs, player=player)
         )
 
     def save(self):
