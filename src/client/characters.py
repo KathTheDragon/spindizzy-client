@@ -157,8 +157,8 @@ class Player(Character):
         if self.autoconnect:
             self.connect()
 
-    @staticmethod
-    def kwargs(data):
+    @classmethod
+    def kwargs(cls, data):
         return super().kwargs(data) | dict(
             tabs=(
                 load(Puppet, data.get('puppets', {})) |
