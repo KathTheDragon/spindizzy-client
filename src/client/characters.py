@@ -205,11 +205,13 @@ class Player(Character):
         self.connection.send(*messages)
 
     def receive(self, *messages):
-        for tab in self.tabs:
-            if tab.receive(*messages):
-                return True
-        else:
-            return super().receive(*messages)
+        for message in messages:
+            for tab in self.tabs:
+                if tab.receive(message):
+                    break
+            else:
+                super().receive(message)
+        return True
 
     # Internal
     def update(self):
