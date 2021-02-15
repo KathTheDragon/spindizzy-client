@@ -39,7 +39,7 @@ def load(cls, tabs, **kwargs):
     return {name: cls.load(name, data, **kwargs) for name, data in tabs.items()}
 
 def save(tabs):
-    return {name: tabs.save() for name, tab in tabs.items()}
+    return {name: tab.save() for name, tab in tabs.items()}
 
 def gettype(type):
     if type == 'puppet':
