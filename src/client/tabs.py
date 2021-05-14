@@ -59,7 +59,7 @@ class Tab:
                 raise ValueError(f'{self.__class__.__name__}() missing required argument {attr!r}')
             else:
                 attrs[attr] = kwargs.pop(attr, default)
-        attrs['logfile'] = kwargs.pop('logfile', '')
+        attrs['logger'] = logging.Logger(**kwargs.pop('logger', ''))
         if kwargs:
             raise TypeError(f'{self.__class__.__name__}() got an unexpected keyword argument {next(iter(kwargs))!r}')
         for attr, value in attrs.items():
@@ -71,13 +71,13 @@ class Tab:
         arglist = []
         for attr in ['name'] + list(self.__attrs__):
             arglist.append(f'{attr}={getattr(self, attr)!r}')
-        arglist.append(f'logfile={self.logfile!r}')
+        arglist.append(f'logger={self.logger!r}')
         return f'{self.__class__.__name__}({", ".join(arglist)})'
 
     @classmethod
     def kwargs(cls, data):
         return (
-            dict(logfile=data.get('log-file', '')) |
+            dict(logger=data.get('log', '')) |
             {attr: data.get(key, default) for attr, (key, default) in cls.__attrs__.items()}
         )
 
@@ -90,15 +90,19 @@ class Tab:
 
     def save(self):
         return (
-            {'log-file': self.logfile} |
+            {'log': self.logger._data()} |
             {key: getattr(self, attr) for attr, (key, default) in self.__attrs__.items()}
         )
 
     ## Self Management
     def _edit(self, **kwargs):
         attrs = {}
+        logattrs = {}
         if 'logfile' in kwargs:
-            attrs['logfile'] = kwargs.pop('logfile')
+            logattrs['file'] = kwargs.pop('logfile')
+        if 'logformat' in kwargs:
+            logattrs['format'] = kwargs.pop('logformat')
+        self.logger._edit(**logattrs)
         for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
             if default is None and kwargs.get(attr) == '':
                 raise ValueError(f'{attr} cannot be blank')
@@ -115,23 +119,17 @@ class Tab:
             if not self.connected:
                 self.connect(messages[0].time)
             self.buffer.extend(messages)
-            logging.log(self.logfile, *messages)
+            self.logger.log(*messages)
         return ()
 
     def connect(self, time):
-        if self.logfile:
-            self.buffer.append(f'! Connected; logging to {self.logfile!r}')
-            logging.start(self.logfile, time)
-        else:
-            self.buffer.append('! Connected')
+        self.buffer.append(f'! Connected; logging to {self.logfile!r}')
+        self.logger.start(time)
         self.connected = True
 
     def disconnect(self, time):
-        if self.logfile:
-            self.buffer.append(f'! Disconnected; logging stopped')
-            logging.stop(self.logfile, time)
-        else:
-            self.buffer.append('! Disconnected')
+        self.buffer.append(f'! Disconnected; logging stopped')
+        self.logger.stop(time)
         self.connected = False
 
     def read(self, line=None, start=None, stop=None):

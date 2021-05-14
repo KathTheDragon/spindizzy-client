@@ -1,19 +1,30 @@
 from pathlib import Path
+from dataclasses import dataclass, asdict
 from datetime import datetime
+from itertools import starmap
 
-def start(file, time):
-    if file:
-        with Path(file).open('a') as f:
-            f.write(f'{"":*<60}\nLogging Started: {time}\n{"":-<60}\n')
+@dataclass
+class Logger:
+    file: Path
+    format: str
 
-def log(file, *lines):
-    if file:
-        with Path(file).open('a') as f:
-            for time, line in lines:
-                f.write(str(line))
+    def _data(self):
+        return asdict(self)
 
-def stop(file, time):
-    if file:
-        with Path(file).open('a') as f:
-            f.write(f'{"":-<60}\nLogging Stopped: {time}\n{"":*<60}\n')
+    def _edit(self, file=None, format=None):
+        if file is not None:
+            self.file = Path(file)
+        if format is not None:
+            self.format = format
 
+    def start(self, time):
+        with self.file.open('a') as f:
+            print('*'*60, f'Logging Started: {time}', '-'*60, sep='\n', file=f)
+
+    def log(self, *lines):
+        with self.file.open('a') as f:
+            print(*starmap(self.format.format, lines), sep='\n', file=f)
+
+    def stop(self, time):
+        with self.file.open('a') as f:
+            print('-'*60, f'Logging Stopped: {time}', '*'*60, sep='\n', file=f)

@@ -3,11 +3,17 @@
         "password": "******",
         "post-connect": ["k fa"],
         "auto-connect": true,
-        "log-file": "...",
+        "log": {
+            "file": "...",
+            "format": "..."
+        }
         "puppets": {
             "'Kamare": {
                 "action": "k",
-                "log-file": "..."
+                "log": {
+                    "file": "...",
+                    "format": "..."
+                }
             },
             ...
         },
@@ -16,7 +22,10 @@
                 "send-prefix": "com ",
                 "receive-prefix": "Com ",
                 "remove-prefix": true,
-                "log-file": "..."
+                "log": {
+                    "file": "...",
+                    "format": "..."
+                }
             },
             ...
         }
