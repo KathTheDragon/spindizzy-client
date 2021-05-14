@@ -111,20 +111,27 @@ class Tab:
 
     ## API
     def receive(self, *messages):
-        if not self.connected:
-            self.connect()
-        self.buffer.extend(messages)
-        logging.log(self.logfile, *messages)
+        if messages:
+            if not self.connected:
+                self.connect(messages[0].time)
+            self.buffer.extend(messages)
+            logging.log(self.logfile, *messages)
         return ()
 
-    def connect(self):
-        # Connection preamble
-        logging.start(self.logfile)
+    def connect(self, time):
+        if self.logfile:
+            self.buffer.append(f'! Connected; logging to {self.logfile!r}')
+            logging.start(self.logfile, time)
+        else:
+            self.buffer.append('! Connected')
         self.connected = True
 
-    def disconnect(self):
-        # Disconnection postamble
-        logging.stop(self.logfile)
+    def disconnect(self, time):
+        if self.logfile:
+            self.buffer.append(f'! Disconnected; logging stopped')
+            logging.stop(self.logfile, time)
+        else:
+            self.buffer.append('! Disconnected')
         self.connected = False
 
     def read(self, line=None, start=None, stop=None):

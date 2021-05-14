@@ -1,15 +1,26 @@
 import socket
 import ssl
+from datetime import datetime
 from threading import Thread
 from collections import deque
 
 _context = ssl.create_default_context()
+
+timestamp_fmt = '%d/%m/%Y %H:%M:%S'
 
 class ConnectionClosed(Exception):
     pass
 
 class ConnectionOpen(Exception):
     pass
+
+class Line:
+    def __init__(self, message):
+        self.message = message
+        self.time = format(datetime.now(), timestamp_fmt)
+
+    def __str__(self):
+        return f'{self.time}  {self.message}\r\n'
 
 class Connection:
     def __init__(self, name, password):
@@ -38,8 +49,7 @@ class Connection:
             except socket.timeout:
                 pass
             messages = data.decode().splitlines()
-            # Timestamp
-            self.buffer.extend(messages)
+            self.buffer.extend(map(Line, message))
         self.socket.close()
 
     def receive(self):

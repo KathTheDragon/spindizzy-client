@@ -1,22 +1,19 @@
 from pathlib import Path
 from datetime import datetime
 
-def start(file):
+def start(file, time):
     if file:
         with Path(file).open('a') as f:
-            # f.write(header)
-            pass
+            f.write(f'{"":*<60}\nLogging Started: {time}\n{"":-<60}\n')
 
 def log(file, *lines):
     if file:
         with Path(file).open('a') as f:
-            for line in lines:
-                # Add timestamp prefix
-                f.write(line)
+            for time, line in lines:
+                f.write(str(line))
 
-def stop(file):
+def stop(file, time):
     if file:
         with Path(file).open('a') as f:
-            # f.write(footer)
-            pass
+            f.write(f'{"":-<60}\nLogging Stopped: {time}\n{"":*<60}\n')
 
