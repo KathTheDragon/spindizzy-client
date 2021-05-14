@@ -18,7 +18,7 @@ class MissingTabData(InvalidTabData):
 
 class InvalidTab(Exception):
     def __init__(self, player, *, puppet='', misc='', reason=''):
-        if puppet and tab:
+        if puppet and misc:
             raise ValueError('cannot specify both puppet and misc')
         elif puppet:
             super().__init__(f'Puppet {puppet!r} of {player!r} {reason}')
