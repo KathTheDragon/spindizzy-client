@@ -5,10 +5,10 @@ from collections import deque
 
 _context = ssl.create_default_context()
 
-class ConnectionClosed:
+class ConnectionClosed(Exception):
     pass
 
-class ConnectionOpen:
+class ConnectionOpen(Exception):
     pass
 
 class Connection:
