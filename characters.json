@@ -17,7 +17,7 @@
             },
             ...
         },
-        "misc-tabs": {
+        "tabs": {
             "Com": {
                 "send-prefix": "com ",
                 "receive-prefix": "Com ",

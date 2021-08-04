@@ -18,23 +18,23 @@ class MissingTabData(InvalidTabData):
         super().__init__(f'{cls.__name__} {name!r} missing key {key!r}')
 
 class InvalidTab(Exception):
-    def __init__(self, player, *, puppet='', misc='', reason=''):
-        if puppet and misc:
-            raise ValueError('cannot specify both puppet and misc')
+    def __init__(self, player, *, puppet='', tab='', reason=''):
+        if puppet and tab:
+            raise ValueError('cannot specify both puppet and tab')
         elif puppet:
             super().__init__(f'Puppet {puppet!r} of {player!r} {reason}')
-        elif misc:
-            super().__init__(f'Misc {misc!r} of {player!r} {reason}')
+        elif tab:
+            super().__init__(f'Tab {tab!r} of {player!r} {reason}')
         else:
             super().__init__(f'Player {player!r} {reason}')
 
 class TabAlreadyExists(InvalidTab):
-    def __init__(self, player, *, puppet='', misc=''):
-        super().__init__(player, puppet=puppet, misc=misc, reason='already exists')
+    def __init__(self, player, *, puppet='', tab=''):
+        super().__init__(player, puppet=puppet, tab=tab, reason='already exists')
 
 class TabDoesNotExist(InvalidTab):
-    def __init__(self, player, *, puppet='', misc=''):
-        super().__init__(player, puppet=puppet, misc=misc, reason='does not exist')
+    def __init__(self, player, *, puppet='', tab=''):
+        super().__init__(player, puppet=puppet, tab=tab, reason='does not exist')
 
 ## Helper Functions
 def load(cls, tabs, **kwargs):
@@ -46,8 +46,8 @@ def save(tabs):
 def gettype(type):
     if type == 'puppet':
         return Puppet
-    elif type == 'misc':
-        return Misc
+    elif type == 'tab':
+        return Tab
     else:
         ValueError(f'invalid type {type!r}')
 
@@ -57,6 +57,12 @@ __base_attrs__ = {
 }
 
 class Tab:
+    __attrs__ = {
+        'sendprefix': ('send-prefix', None),
+        'receiveprefix': ('receive-prefix', None),
+        'removeprefix': ('remove-prefix', False),
+    }
+
     def __init__(self, **kwargs):
         attrs = {}
         clsname = self.__class__.__name__
@@ -67,6 +73,7 @@ class Tab:
                 raise ValueError(f'{clsname}() missing required argument {attr!r}')
             else:
                 attrs[attr] = kwargs.pop(attr, default)
+        attrs['parent'] = kwargs.pop('parent', None)
         attrs['logger'] = logging.Logger(**kwargs.pop('logger', {}))
         if kwargs:
             arg = next(iter(kwargs))
@@ -123,14 +130,6 @@ class Tab:
             setattr(self, attr, value)
 
     ## API
-    def receive(self, *messages):
-        if messages:
-            if not self.connected:
-                self.connect(messages[0].time)
-            self.buffer.extend(messages)
-            self.logger.log(*messages)
-        return ()
-
     def connect(self, time):
         self.buffer.append(f'! Connected; logging to {self.logfile!r}')
         self.logger.start(time)
@@ -141,6 +140,26 @@ class Tab:
         self.logger.stop(time)
         self.connected = False
 
+    def send(self, *messages):
+        prefix = self.sendprefix
+        messages = [prefix + message for message in messages]
+        self.parent.send(*messages)
+
+    def receive(self, *messages):
+        prefix = self.receiveprefix
+        tabmessages = filter(lambda m: m.startswith(prefix), messages)
+        if self.removeprefix:
+            tabmessages = (message.removeprefix(prefix) for message in tabmessages)
+        self._receive(*tabmessages)
+        return filter(lambda m: not m.startswith(prefix), messages)
+
+    def _receive(self, *messages):
+        if messages:
+            if not self.connected:
+                self.connect(messages[0].time)
+            self.buffer.extend(messages)
+            self.logger.log(*messages)
+
     def read(self, line=None, start=None, stop=None):
         self.update()
         if line is not None:
@@ -150,6 +169,10 @@ class Tab:
                 return self.buffer[line]
         else:
             return self.buffer[slice(start, stop)]
+
+    # Internal
+    def update(self):
+        self.parent.update()
 
 class Player(Tab):
     __attrs__ = {
@@ -163,7 +186,7 @@ class Player(Tab):
         super().__init__(**kwargs)
         self.tabs = {}
         for name, tab in tabs.items():
-            tab.player = self
+            tab.parent = self
             self.tabs[name] = tab
         self.connection = Connection(self.name, self.password)
         if self.autoconnect:
@@ -174,30 +197,19 @@ class Player(Tab):
         return super().kwargs(data) | dict(
             tabs=(
                 load(Puppet, data.get('puppets', {})) |
-                load(Misc, data.get('misc-tabs', {}))
+                load(Tab, data.get('tabs', {}))
             ),
         )
-
-    @classmethod
-    def load(cls, name, data):
-        puppets = data.get('puppets', {})
-        misctabs = data.get('misctabs', {})
-        player = super().load(name, data)
-        player.tabs = (
-            load(Puppet, puppets, player=player) |
-            load(Misc, misctabs, player=player)
-        )
-        return player
 
     def save(self):
         puppets = {name: char for name, char in self.tabs.items() if isinstance(char, Puppet)}
         tabs = {name: char for name, char in self.tabs.items() if not isinstance(char, Puppet)}
         return super().save() | {
             'puppets': save(puppets),
-            'misc-tabs': save(tabs)
+            'tabs': save(tabs)
         }
 
-    # Puppet/Misc Management
+    # Puppet/Tab Management
     def new(self, type, *, name='', **kwargs):
         cls = gettype(type)
         if name == '':
@@ -248,7 +260,8 @@ class Player(Tab):
     def receive(self, *messages):
         for tab in self.tabs.values():
             messages = tab.receive(*messages)
-        return super().receive(*messages)
+        self._receive(*messages)
+        return ()
 
     # Internal
     def update(self):
@@ -256,36 +269,7 @@ class Player(Tab):
         if not self.connection.isopen:
             self.disconnect()
 
-class Misc(Tab):
-    __attrs__ = {
-        'sendprefix': ('send-prefix', None),
-        'receiveprefix': ('receive-prefix', None),
-        'removeprefix': ('remove-prefix', False),
-    }
-
-    def __init__(self, **kwargs):
-        self.player = kwargs.pop('player', None)
-        super().__init__(**kwargs)
-
-    ## API
-    def send(self, *messages):
-        prefix = self.sendprefix
-        messages = [prefix + message for message in messages]
-        self.player.send(*messages)
-
-    def receive(self, *messages):
-        prefix = self.receiveprefix
-        childmessages = filter(lambda m: m.startswith(prefix), messages)
-        if self.removeprefix:
-            childmessages = (message.removeprefix(prefix) for message in childmessages)
-        super().receive(*childmessages)
-        return filter(lambda m: not m.startswith(prefix), messages)
-
-    # Internal
-    def update(self):
-        self.player.update()
-
-class Puppet(Misc):
+class Puppet(Tab):
     __attrs__ = {
         'action': ('action', None),
     }
