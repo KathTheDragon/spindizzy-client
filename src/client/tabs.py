@@ -19,23 +19,16 @@ class MissingTabData(InvalidTabData):
         super().__init__(f'{cls.__name__} {name!r} missing key {key!r}')
 
 class InvalidTab(Exception):
-    def __init__(self, player, *, puppet='', tab='', reason=''):
-        if puppet and tab:
-            raise ValueError('cannot specify both puppet and tab')
-        elif puppet:
-            super().__init__(f'Puppet {puppet!r} of {player!r} {reason}')
-        elif tab:
-            super().__init__(f'Tab {tab!r} of {player!r} {reason}')
-        else:
-            super().__init__(f'Player {player!r} {reason}')
+    def __init__(self, *tabs, reason=''):
+        super().__init__(f'{" - ".join(tabs)} {reason}')
 
 class TabAlreadyExists(InvalidTab):
-    def __init__(self, player, *, puppet='', tab=''):
-        super().__init__(player, puppet=puppet, tab=tab, reason='already exists')
+    def __init__(self, *tabs):
+        super().__init__(*tabs, reason='already exists')
 
 class TabDoesNotExist(InvalidTab):
-    def __init__(self, player, *, puppet='', tab=''):
-        super().__init__(player, puppet=puppet, tab=tab, reason='does not exist')
+    def __init__(self, *tabs):
+        super().__init__(*tabs, reason='does not exist')
 
 ## Helper Functions
 def load(cls, tabs, **kwargs):
@@ -64,39 +57,40 @@ class Tab:
         'removeprefix': ('remove-prefix', False),
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, name, parent=None, tabs=None, logger=None, **kwargs):
         attrs = {}
         clsname = self.__class__.__name__
-        for attr, (key, default) in (__base_attrs__ | self.__attrs__).items():
+        for attr, (key, default) in self.__attrs__.items():
             if default is None and attr not in kwargs:
                 raise TypeError(f'{clsname}() missing required argument {attr!r}')
             elif default is None and kwargs.get(attr) == '':
                 raise ValueError(f'{clsname}() missing required argument {attr!r}')
             else:
                 attrs[attr] = kwargs.pop(attr, default)
-        attrs['parent'] = kwargs.pop('parent', None)
-        attrs['logger'] = logging.Logger(**kwargs.pop('logger', {}))
         if kwargs:
             arg = next(iter(kwargs))
             raise TypeError(f'{clsname}() got an unexpected keyword argument {arg!r}')
         for attr, value in attrs.items():
             setattr(self, attr, value)
+        self.name = name
+        self.parent = parent
+        self.tabs = load(Tab, tabs or {}, parent=self)
+        self.logger = logging.Logger(**logger or {})
         self.buffer = []
         self.connected = False
 
     def __repr__(self):
-        arglist = []
-        for attr in ['name'] + list(self.__attrs__):
-            arglist.append(f'{attr}={getattr(self, attr)!r}')
-        arglist.append(f'logger={self.logger!r}')
+        attrs = ['name', *self.__attrs__, 'parent', 'logger']
+        arglist = [f'{attr}={getattr(self, attr)!r}' for attr in attrs]
         return f'{self.__class__.__name__}({", ".join(arglist)})'
 
     @classmethod
-    def kwargs(cls, data):
-        return (
-            dict(logger=data.get('log', {})) |
-            {attr: data.get(key, default) for attr, (key, default) in cls.__attrs__.items()}
-        )
+    def kwargs(cls, data, **attrs):
+        attrs = cls.__attrs__ | {
+            'logger': ('log', {}),
+            'tabs': ('tabs', {}),
+        } | attrs
+        return {attr: data.get(k, d) for attr, (k, d) in cls.__attrs__.items()}
 
     @classmethod
     def load(cls, name, data, **kwargs):
@@ -106,10 +100,10 @@ class Tab:
         return cls(name=name, **cls.kwargs(data), **kwargs)
 
     def save(self):
-        return (
-            {'log': self.logger._data()} |
-            {key: getattr(self, attr) for attr, (key, default) in self.__attrs__.items()}
-        )
+        return {key: getattr(self, attr) for attr, (key, _) in self.__attrs__.items()} | {
+            'log': self.logger._data(),
+            'tabs': save(self.tabs),
+        }
 
     ## Self Management
     def _edit(self, **kwargs):
@@ -124,6 +118,39 @@ class Tab:
             raise TypeError(f'{next(iter(kwargs))} is not an editable attribute of {self.__class__.__name__!r}')
         for attr, value in attrs.items():
             setattr(self, attr, value)
+
+    ## Tab Management
+    def new(self, *, type='tab', name='', **kwargs):
+        cls = gettype(type)
+        if name == '':
+            raise ValueError('name cannot be blank')
+        elif name in self.tabs:
+            raise TabAlreadyExists(self.name, name)
+        else:
+            self.tabs[name] = cls(name=name, **kwargs)
+            return self.tabs[name]
+
+    def get(self, tab):
+        if tab not in self.tabs:
+            raise TabDoesNotExist(self.name, tab)
+        else:
+            return self.tabs[tab]
+
+    def edit(self, tab, **kwargs):
+        self.get(tab)._edit(**kwargs)
+        if 'name' in kwargs:
+            name = kwargs['name']
+            self.tabs[name] = self.tabs.pop(tab)
+
+    def delete(self, tab):
+        self.get(tab)
+        del self.tabs[tab]
+
+    def itertabs(self):
+        for name, tab in self.tabs.items():
+            yield (self.name, name)
+            for names in tab.itertabs():
+                yield (self.name, name, *names)
 
     ## API
     def connect(self, time):
@@ -143,6 +170,8 @@ class Tab:
             else:
                 self.buffer.append('! Disconnected')
             self.connected = False
+            for tab in self.tabs.values:
+                tab.disconnect()
 
     def send(self, *messages):
         if messages:
@@ -163,6 +192,8 @@ class Tab:
 
     def _receive(self, *messages):
         if messages:
+            for tab in self.tabs.values():
+                messages = tab.receive(*messages)
             if not self.connected:
                 self.connect(messages[0].time)
             self.buffer.extend(messages)
@@ -190,25 +221,16 @@ class Player(Tab):
         'postconnect': ('post-connect', ()),
     }
 
-    def __init__(self, **kwargs):
-        tabs = kwargs.pop('tabs', {})
+    def __init__(self, puppets=None, **kwargs):
         super().__init__(**kwargs)
-        self.tabs = {}
-        for name, tab in tabs.items():
-            tab.parent = self
-            self.tabs[name] = tab
+        self.tabs |= load(Puppet, puppets or {}, parent=self)
         self.connection = Connection(self.name, self.password)
         if self.autoconnect:
             self.connect()
 
     @classmethod
     def kwargs(cls, data):
-        return super().kwargs(data) | dict(
-            tabs=(
-                load(Puppet, data.get('puppets', {})) |
-                load(Tab, data.get('tabs', {}))
-            ),
-        )
+        return super().kwargs(data, puppets=('puppets', {}))
 
     def save(self):
         puppets = {name: char for name, char in self.tabs.items() if isinstance(char, Puppet)}
@@ -217,37 +239,6 @@ class Player(Tab):
             'puppets': save(puppets),
             'tabs': save(tabs)
         }
-
-    # Puppet/Tab Management
-    def new(self, type, *, name='', **kwargs):
-        cls = gettype(type)
-        if name == '':
-            raise ValueError('name cannot be blank')
-        elif name in self.tabs:
-            raise TabAlreadyExists(self.name, **{type: name})
-        else:
-            self.tabs[name] = cls(name=name, **kwargs)
-            return self.tabs[name]
-
-    def get(self, type, tab):
-        exc = TabDoesNotExist(self.name, **{type: tab})
-        cls = gettype(type)
-        if tab not in self.tabs:
-            raise exc
-        char = self.tabs[tab]
-        if not isinstance(char, cls):
-            raise exc
-        return char
-
-    def edit(self, type, tab, **kwargs):
-        self.get(type, tab)._edit(**kwargs)
-        if 'name' in kwargs:
-            name = kwargs['name']
-            self.tabs[name] = self.tabs.pop(tab)
-
-    def delete(self, type, tab):
-        self.get(type, tab)
-        del self.tabs[tab]
 
     # API
     def connect(self):
@@ -260,8 +251,6 @@ class Player(Tab):
         if self.connection.isopen:
             self.connection.close()
         super().disconnect()
-        for tab in self.tabs.values():
-            tab.disconnect()
 
     def send(self, *messages):
         if messages:
@@ -270,8 +259,6 @@ class Player(Tab):
             self.connection.send(*messages)
 
     def receive(self, *messages):
-        for tab in self.tabs.values():
-            messages = tab.receive(*messages)
         self._receive(*messages)
         return ()
 
@@ -309,9 +296,8 @@ class TabList:
 
     def characters(self):
         for name, player in self.players.items():
-            yield name, ''
-            for tab in player.tabs:
-                yield name, tab
+            yield (name,)
+            yield from player.itertabs()
 
     # Player management
     def new_player(self, *, name='', **kwargs):
@@ -340,32 +326,35 @@ class TabList:
         del self.players[player]
 
     # Tab Management
-    def new(self, type, player='', **kwargs):
-        if type == 'player':
+    def new(self, *parent, **kwargs):
+        if not parent:
             char = self.new_player(**kwargs)
         else:
-            char = self.get_player(player).new(type, **kwargs)
+            char = self.get(*parent).new(**kwargs)
         self.save()
         return char
 
-    def get(self, type, player, tab=''):
-        if type == 'player':
-            return self.get_player(player)
+    def get(self, *tab):
+        (*parent, tab) = tab
+        if not parent:
+            return self.get_player(tab)
         else:
-            return self.get_player(player).get(type, tab)
+            return self.get(*parent).get(tab)
 
-    def edit(self, type, player, tab='', **kwargs):
-        if type == 'player':
-            self.edit_player(player, **kwargs)
+    def edit(self, *tab, **kwargs):
+        (*parent, tab) = tab
+        if not parent:
+            self.edit_player(tab, **kwargs)
         else:
-            self.get_player(player).edit(type, tab, **kwargs)
+            self.get(*parent).edit(tab, **kwargs)
         self.save()
 
-    def delete(self, type, player, tab=''):
-        if type == 'player':
-            self.delete_player(player)
+    def delete(self, *tab):
+        (*parent, tab) = tab
+        if not parent:
+            self.delete_player(tab)
         else:
-            self.get_player(player).delete(type, tab)
+            self.get(*parent).delete(tab)
         self.save()
 
     # Internal
