@@ -82,7 +82,7 @@ class Tab:
     @classmethod
     def kwargs(cls, data):
         return (
-            dict(logger=data.get('log', '')) |
+            dict(logger=data.get('log', {})) |
             {attr: data.get(key, default) for attr, (key, default) in cls.__attrs__.items()}
         )
 
