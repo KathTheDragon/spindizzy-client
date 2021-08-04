@@ -63,7 +63,7 @@ class Tab:
                 raise ValueError(f'{clsname}() missing required argument {attr!r}')
             else:
                 attrs[attr] = kwargs.pop(attr, default)
-        attrs['logger'] = logging.Logger(**kwargs.pop('logger', ''))
+        attrs['logger'] = logging.Logger(**kwargs.pop('logger', {}))
         if kwargs:
             arg = next(iter(kwargs))
             raise TypeError(f'{clsname}() got an unexpected keyword argument {arg!r}')
