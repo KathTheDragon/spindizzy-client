@@ -9,6 +9,7 @@ if not tabfile.exists():
     with tabfile.open(mode='w') as f:
         f.write('{}')
 
+## Exceptions
 class InvalidTabData(Exception):
     pass
 
@@ -35,6 +36,7 @@ class TabDoesNotExist(InvalidTab):
     def __init__(self, player, *, puppet='', misc=''):
         super().__init__(player, puppet=puppet, misc=misc, reason='does not exist')
 
+## Helper Functions
 def load(cls, tabs, **kwargs):
     return {name: cls.load(name, data, **kwargs) for name, data in tabs.items()}
 
@@ -49,19 +51,22 @@ def gettype(type):
     else:
         ValueError(f'invalid type {type!r}')
 
+## Classes
 class Tab:
     def __init__(self, **kwargs):
         attrs = {}
+        clsname = self.__class__.__name__
         for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
             if default is None and attr not in kwargs:
-                raise TypeError(f'{self.__class__.__name__}() missing required argument {attr!r}')
+                raise TypeError(f'{clsname}() missing required argument {attr!r}')
             elif default is None and kwargs.get(attr) == '':
-                raise ValueError(f'{self.__class__.__name__}() missing required argument {attr!r}')
+                raise ValueError(f'{clsname}() missing required argument {attr!r}')
             else:
                 attrs[attr] = kwargs.pop(attr, default)
         attrs['logger'] = logging.Logger(**kwargs.pop('logger', ''))
         if kwargs:
-            raise TypeError(f'{self.__class__.__name__}() got an unexpected keyword argument {next(iter(kwargs))!r}')
+            arg = next(iter(kwargs))
+            raise TypeError(f'{clsname}() got an unexpected keyword argument {arg!r}')
         for attr, value in attrs.items():
             setattr(self, attr, value)
         self.buffer = []
