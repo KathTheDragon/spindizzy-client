@@ -180,7 +180,8 @@ class Tab:
 
     # Internal
     def update(self):
-        self.parent.update()
+        if self.parent is not None:
+            self.parent.update()
 
 class Player(Tab):
     __attrs__ = {
