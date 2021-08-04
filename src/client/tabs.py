@@ -52,11 +52,15 @@ def gettype(type):
         ValueError(f'invalid type {type!r}')
 
 ## Classes
+__base_attrs__ = {
+    'name': (None, None),
+}
+
 class Tab:
     def __init__(self, **kwargs):
         attrs = {}
         clsname = self.__class__.__name__
-        for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
+        for attr, (key, default) in (__base_attrs__ | self.__attrs__).items():
             if default is None and attr not in kwargs:
                 raise TypeError(f'{clsname}() missing required argument {attr!r}')
             elif default is None and kwargs.get(attr) == '':
@@ -108,7 +112,7 @@ class Tab:
         if 'logformat' in kwargs:
             logattrs['format'] = kwargs.pop('logformat')
         self.logger._edit(**logattrs)
-        for attr, (key, default) in ({'name': (None, None)} | self.__attrs__).items():
+        for attr, (key, default) in (__base_attrs__ | self.__attrs__).items():
             if default is None and kwargs.get(attr) == '':
                 raise ValueError(f'{attr} cannot be blank')
             elif attr in kwargs:
