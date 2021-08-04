@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from . import logging
 from .network import Connection
@@ -112,13 +113,8 @@ class Tab:
 
     ## Self Management
     def _edit(self, **kwargs):
+        self.logger._edit(file=kwargs.pop('logfile', None), format=kwargs.pop('logformat', None))
         attrs = {}
-        logattrs = {}
-        if 'logfile' in kwargs:
-            logattrs['file'] = kwargs.pop('logfile')
-        if 'logformat' in kwargs:
-            logattrs['format'] = kwargs.pop('logformat')
-        self.logger._edit(**logattrs)
         for attr, (key, default) in (__base_attrs__ | self.__attrs__).items():
             if default is None and kwargs.get(attr) == '':
                 raise ValueError(f'{attr} cannot be blank')
@@ -131,19 +127,31 @@ class Tab:
 
     ## API
     def connect(self, time):
-        self.buffer.append(f'! Connected; logging to {self.logfile!r}')
-        self.logger.start(time)
-        self.connected = True
+        if not self.connected:
+            if self.parent is not None:
+                self.parent.connect(time)
+            if self.logger.start(time):
+                self.buffer.append(f'! Connected; logging to {self.logger.file!r}')
+            else:
+                self.buffer.append('! Connected')
+            self.connected = True
 
     def disconnect(self, time):
-        self.buffer.append(f'! Disconnected; logging stopped')
-        self.logger.stop(time)
-        self.connected = False
+        if self.connected:
+            if self.logger.stop(time):
+                self.buffer.append('! Disconnected; logging stopped')
+            else:
+                self.buffer.append('! Disconnected')
+            self.connected = False
 
     def send(self, *messages):
-        prefix = self.sendprefix
-        messages = [prefix + message for message in messages]
-        self.parent.send(*messages)
+        if messages:
+            if not self.connected:
+                self.connect(datetime.now())
+            prefix = self.sendprefix
+            messages = [prefix + message for message in messages]
+            if self.parent is not None:
+                self.parent.send(*messages)
 
     def receive(self, *messages):
         prefix = self.receiveprefix
@@ -255,7 +263,10 @@ class Player(Tab):
             tab.disconnect()
 
     def send(self, *messages):
-        self.connection.send(*messages)
+        if messages:
+            if not self.connected:
+                self.connect(datetime.now())
+            self.connection.send(*messages)
 
     def receive(self, *messages):
         for tab in self.tabs.values():

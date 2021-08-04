@@ -15,12 +15,21 @@ class ConnectionOpen(Exception):
     pass
 
 class Line:
-    def __init__(self, message):
+    def __init__(self, message, time=None):
         self.message = message
-        self.time = format(datetime.now(), timestamp_fmt)
+        self.time = time or format(datetime.now(), timestamp_fmt)
 
     def __str__(self):
         return f'{self.time}  {self.message}\r\n'
+
+    def __radd__(self, other):
+        return Line(other + self.message, self.time)
+
+    def startswith(self, prefix):
+        return self.message.startswith(prefix)
+
+    def removeprefix(self, prefix):
+        return Line(self.message.removeprefix(prefix), self.time)
 
 class Connection:
     def __init__(self, name, password):
